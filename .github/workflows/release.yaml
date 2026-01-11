@@ -1,6 +1,6 @@
 env:
   DIRECTORY: .
-  PROJECT_NAME: browser-extension-template
+  PROJECT_NAME: bilingualtube
 
 name: Release
 
