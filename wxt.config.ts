@@ -22,7 +22,7 @@ export default defineConfig({
     const manifest: UserManifest = {
       name: 'BilingualTube',
       description:
-        'Watch YouTube with bilingual subtitles. Display original and translated text for language learning and comprehension.',
+        'Watch YouTube with bilingual subtitles for language learning and comprehension.',
       permissions: ['storage'],
       author: {
         email: 'rxliuli@gmail.com',
