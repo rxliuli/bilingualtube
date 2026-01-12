@@ -280,11 +280,13 @@ describe('real world subtitle merge', () => {
     const data = (await import('./assets/timedtext-mlp-s4-e26.json')).default
     const r = mergeTimedtextEvents(data.events as TimedtextEvent[], 'en')
     const contents = r.map((it) => it.content)
-    expect(contents[0]).eq("[Music] What's wrong, Twilight?")
-    expect(contents[1]).eq(
+    // [Music] is now split into its own subtitle
+    expect(contents[0]).eq('[Music]')
+    expect(contents[1]).eq("What's wrong, Twilight?")
+    expect(contents[2]).eq(
       "It doesn't seem that my new role as a princess equates to all that much.",
     )
-    expect(contents[2]).eq(
+    expect(contents[3]).eq(
       'I am Lord Derek, and I will take what should have been mine long ago.',
     )
   })
@@ -292,22 +294,53 @@ describe('real world subtitle merge', () => {
   it('Should calculate start and end time correctly', async () => {
     const data = (await import('./assets/timedtext-mlp-s4-e26.json')).default
     const r = mergeTimedtextEvents(data.events as TimedtextEvent[], 'en')
+    // [Music] is now its own subtitle
     expect(r[0]).toEqual({
       start: 2.11, // From "[Music]" tStartMs: 2110
-      end: (4319 + 1601) / 1000,
-      content: "[Music] What's wrong, Twilight?",
+      end: 4.319, // Trimmed to avoid overlap with next subtitle
+      content: '[Music]',
     } satisfies SubtitleCue)
     expect(r[1]).toEqual({
+      start: 4.319,
+      end: (4319 + 1601) / 1000,
+      content: "What's wrong, Twilight?",
+    })
+    expect(r[2]).toEqual({
       start: (4319 + 1601) / 1000,
       end: (8160 + 1280) / 1000,
       content:
         "It doesn't seem that my new role as a princess equates to all that much.",
     })
-    expect(r[2]).toEqual({
+    expect(r[3]).toEqual({
       start: (8160 + 1280) / 1000,
       end: (15679 + 1600) / 1000,
       content:
         'I am Lord Derek, and I will take what should have been mine long ago.',
     })
+  })
+  // Correctly handle real world subtitle merge
+  it('Should handle real world subtitle merge correctly', async () => {
+    const data = (await import('./assets/timedtext-mlp-s8-e8.json')).default
+    const r = mergeTimedtextEvents(data.events as TimedtextEvent[], 'en')
+
+    const targetIndex = r.findIndex((sub) =>
+      sub.content.includes('share Starlight'),
+    )
+
+    expect(r[targetIndex]).toEqual({
+      start: 157.239, // Start time of "share Starlight" segment
+      end: 164.72, // End time trimmed to avoid overlap with next subtitle
+      content:
+        "share Starlight you mean we've both been called this is great yeah",
+    } satisfies SubtitleCue)
+    const cue2Index = r.findIndex((cue) =>
+      cue.content.includes(
+        'nope the great thing about home is it always stays just how you let oh',
+      ),
+    )
+    expect(r[cue2Index]?.content).eq(
+      'nope the great thing about home is it always stays just how you let oh',
+    )
+    expect(r[cue2Index + 1]?.content).eq('[Music]')
   })
 })

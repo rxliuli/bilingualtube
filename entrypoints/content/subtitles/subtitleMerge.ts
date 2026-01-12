@@ -132,11 +132,39 @@ export function mergeTimedtextEvents(
 
     for (let i = 0; i < segsWithTime.length; i++) {
       const seg = segsWithTime[i]
+      const trimmedText = seg.text.trim()
+
+      // Check if this seg is a [Music] marker (case-sensitive)
+      const isMusicMarker = trimmedText === '[Music]'
+
+      // If it's a [Music] marker, treat it as its own sentence
+      if (isMusicMarker) {
+        // First, emit any accumulated sentence before [Music]
+        if (currentSentence.trim()) {
+          eventsWithText.push({
+            tStartMs: currentStartMs,
+            dDurationMs: seg.startMs - currentStartMs,
+            text: currentSentence.trim(),
+          })
+        }
+        // Then emit [Music] as a separate sentence
+        eventsWithText.push({
+          tStartMs: seg.startMs,
+          dDurationMs: seg.endMs - seg.startMs,
+          text: '[Music]',
+        })
+        // Reset for next sentence
+        currentSentence = ''
+        if (i + 1 < segsWithTime.length) {
+          currentStartMs = segsWithTime[i + 1].startMs
+        }
+        continue
+      }
+
       currentSentence += seg.text
       currentEndMs = seg.endMs
 
       // Check if this seg ends with terminal punctuation
-      const trimmedText = seg.text.trim()
       if (/[.!?]$/.test(trimmedText)) {
         // Found a sentence boundary, emit the current sentence
         if (currentSentence.trim()) {
@@ -195,8 +223,19 @@ export function mergeTimedtextEvents(
 
     // Check if previous text ends with sentence-ending punctuation
     const previousTextTrimmed = previous.text.trim()
+    const currentTextTrimmed = current.text.trim()
     const endsWithTerminalPunctuation = /[.!?]$/.test(previousTextTrimmed)
     const endsWithComma = /,$/.test(previousTextTrimmed)
+
+    // If current text is [Music], ALWAYS keep it separate
+    if (currentTextTrimmed === '[Music]') {
+      return acc.concat(current)
+    }
+
+    // If previous text is [Music], ALWAYS start a new cue
+    if (previousTextTrimmed === '[Music]') {
+      return acc.concat(current)
+    }
 
     // If previous text ends with terminal punctuation (.!?), ALWAYS start a new cue
     // These punctuation marks indicate a complete sentence and should force a break
@@ -238,9 +277,23 @@ export function mergeTimedtextEvents(
   }, [] as Array<{ tStartMs: number; dDurationMs: number; text: string }>)
 
   // Convert to output format with normalized text
-  return merged.map((item) => ({
+  const cues = merged.map((item) => ({
     start: item.tStartMs / 1000,
     end: (item.tStartMs + item.dDurationMs) / 1000,
     content: normalizeSegmentText(item.text, lang),
   }))
+
+  // Post-process: Fix overlapping subtitles by adjusting end times
+  // If subtitle N overlaps with subtitle N+1, trim N's end time to match N+1's start time
+  for (let i = 0; i < cues.length - 1; i++) {
+    const current = cues[i]
+    const next = cues[i + 1]
+
+    if (current.end > next.start) {
+      // Overlap detected, trim current subtitle's end time
+      current.end = next.start
+    }
+  }
+
+  return cues
 }
