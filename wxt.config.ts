@@ -22,7 +22,7 @@ export default defineConfig({
     const manifest: UserManifest = {
       name: 'BilingualTube',
       description:
-        'Watch YouTube videos with bilingual subtitles. Display original and translated subtitles simultaneously to improve language learning and video comprehension.',
+        'Watch YouTube with bilingual subtitles. Display original and translated text for language learning and comprehension.',
       permissions: ['storage'],
       author: {
         email: 'rxliuli@gmail.com',
@@ -36,7 +36,7 @@ export default defineConfig({
           '128': 'icon/128.png',
         },
       },
-      homepage_url: 'https://rxliuli.com/project/bilingualtube',
+      homepage_url: 'https://rxliuli.com/project/bilingualtube/',
     }
     if (env.browser === 'firefox') {
       manifest.browser_specific_settings = {
