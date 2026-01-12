@@ -1,5 +1,7 @@
 import { defineExtensionMessaging } from '@webext-core/messaging'
+import { Settings } from './settings'
 
 export const messager = defineExtensionMessaging<{
-  show(): void
+  translate(texts: string[]): Promise<string[]>
+  getSettings(): Promise<Settings>
 }>()

@@ -1,42 +1,48 @@
-# Browser Extension Template
+# BilingualTube
 
-A modern browser extension development template built with React, Shadcn/ui, and WXT. Supports building cross-browser extensions compatible with Chrome, Edge, Firefox, and Safari (requires macOS).
+A browser extension that adds bilingual subtitles to YouTube videos. Displays original and translated subtitles simultaneously, or uses official YouTube translations when available.
 
-## Getting Started
+## Features
 
-### Initialize Project
+- **Bilingual Subtitles**: Shows original and translated text together
+- **Official Translation Priority**: Uses YouTube's official translations when available
+- **API Translation Fallback**: Supports Microsoft Translator and OpenAI for videos without official translations
+- **Cross-browser Support**: Works on Chrome, Edge, Firefox, and Safari
+
+## Installation
+
+Install from your browser's extension store (coming soon), or build from source:
 
 ```sh
-git clone https://github.com/<your-github-username>/<your-project-name>.git
-cd <your-project-name>
-pnpm i
-pnpm init-project
+git clone https://github.com/rxliuli/bilingual-tube.git
+cd bilingual-tube
+pnpm install
+pnpm build
 ```
 
-Follow the prompts to enter your project name and complete the initialization.
+Load the extension from `.output/chrome-mv3` (Chrome/Edge) or `.output/firefox-mv3` (Firefox).
+
+## Configuration
+
+Open the extension options page to configure:
+
+- **Target Language**: Select your preferred translation language
+- **Translation Engine**: Choose between Microsoft (default, no API key required) or OpenAI
+- **OpenAI Settings**: Configure API key, model, base URL, and custom prompts (when using OpenAI)
 
 ## Development
 
-Chrome is used as the baseline version for development. Edge, Firefox, and Safari builds are only created when needed for publishing, testing, or debugging platform-specific issues.
-
-### Start Development Server
+Start the development server:
 
 ```sh
 pnpm dev
 ```
 
-After running the development server:
+This creates a development build in `.output/chrome-mv3-dev`. Load it in Chrome via `chrome://extensions` with Developer mode enabled.
 
-1. Navigate to the `*.output/chrome-mv3-dev` directory to find the compiled extension files
-2. Open `chrome://extensions` in Chrome
-3. Enable "Developer mode"
-4. Drag and drop the output directory to load the extension for debugging
-
-## Build & Package
+## Building
 
 ### Chrome, Edge, and Firefox
-
-Generate production builds and create zip files for distribution:
 
 ```sh
 pnpm zip && pnpm zip:firefox
@@ -44,17 +50,20 @@ pnpm zip && pnpm zip:firefox
 
 ### Safari
 
-Safari extension requires macOS environment and Xcode for building and publishing.
+Requires macOS and Xcode:
 
-#### Build Steps
+1. Update `developmentTeam` in [wxt.config.ts](wxt.config.ts) with your Apple Developer Team ID
+2. Run `pnpm build:safari`
+3. Build and test in Xcode
 
-1. Update `developmentTeam` in `wxt.config.ts` with your Apple Developer Team ID
-2. Run `pnpm build:safari` - this will automatically build and open Xcode
-3. Build the project in Xcode and test in Safari
-4. To publish: In Xcode, select **Product → Archive** to submit to the App Store
+## Technical Stack
 
-## Requirements
+- [WXT](https://wxt.dev/): Browser extension framework
+- [React](https://react.dev/): UI library
+- [Shadcn/ui](https://ui.shadcn.com/): Component library
+- [TanStack Query](https://tanstack.com/query): Data synchronization
+- [Tailwind CSS](https://tailwindcss.com/): Styling
 
-- Node.js (latest LTS recommended)
-- pnpm package manager
-- macOS with Xcode (for Safari development only)
+## License
+
+GPL-3.0

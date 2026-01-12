@@ -1,0 +1,44 @@
+#ytp-caption-window-container {
+  display: none !important;
+}
+
+#bilingual-tube-subtitle-overlay {
+  display: none;
+
+  position: absolute;
+  z-index: 99999;
+  touch-action: none;
+  text-align: center;
+  overflow: hidden;
+  width: 65%;
+  left: calc((100% - 65%) / 2);
+  bottom: calc(var(--yt-delhi-bottom-controls-height, 72px) + 2%);
+
+  white-space: pre-wrap;
+  font-size: 2.5rem;
+  color: rgb(255, 255, 255);
+  fill: rgb(255, 255, 255);
+  font-family: 'YouTube Noto', Roboto, Arial, Helvetica, Verdana,
+    'PT Sans Caption', sans-serif;
+}
+
+#bilingual-tube-subtitle-overlay .subtitle-original,
+#bilingual-tube-subtitle-overlay .subtitle-translated {
+  display: inline-block;
+  background: rgba(8, 8, 8, 0.75);
+  padding: 0 1rem;
+}
+
+#bilingual-tube-subtitle-overlay .subtitle-translated {
+  opacity: 0.9;
+}
+
+#movie_player:has([aria-pressed='true']) #bilingual-tube-subtitle-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#movie_player.ytp-autohide #bilingual-tube-subtitle-overlay {
+  bottom: 2%;
+}
