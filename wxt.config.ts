@@ -22,9 +22,8 @@ export default defineConfig({
     const manifest: UserManifest = {
       name: 'BilingualTube',
       description:
-        'A template for WXT, a WebExtension framework based on Vite and React',
+        'Watch YouTube videos with bilingual subtitles. Display original and translated subtitles simultaneously to improve language learning and video comprehension.',
       permissions: ['storage'],
-      host_permissions: ['<all_urls>'],
       author: {
         email: 'rxliuli@gmail.com',
       },
