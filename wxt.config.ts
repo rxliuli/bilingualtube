@@ -16,6 +16,10 @@ export default defineConfig({
         '@': __dirname,
       },
     },
+    build: {
+      minify: false,
+      sourcemap: true,
+    },
   }),
   manifestVersion: 3,
   manifest: (env) => {
@@ -24,6 +28,7 @@ export default defineConfig({
       description:
         'Watch YouTube with bilingual subtitles for language learning and comprehension.',
       permissions: ['storage'],
+      host_permissions: ['<all_urls>'],
       author: {
         email: 'rxliuli@gmail.com',
       },
@@ -37,6 +42,16 @@ export default defineConfig({
         },
       },
       homepage_url: 'https://rxliuli.com/project/bilingualtube/',
+      web_accessible_resources: [
+        {
+          resources: [
+            '/onnxruntime-web/ort-wasm-simd-threaded.wasm',
+            '/sherpa-onnx-online-punct-en-2024-08-06/bpe.vocab',
+            '/sherpa-onnx-online-punct-en-2024-08-06/model.int8.onnx',
+          ],
+          matches: ['https://www.youtube.com/*'],
+        },
+      ],
     }
     if (env.browser === 'firefox') {
       manifest.browser_specific_settings = {

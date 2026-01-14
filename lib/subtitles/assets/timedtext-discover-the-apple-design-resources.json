@@ -1,0 +1,806 @@
+{
+  "wireMagic": "pb3",
+  "pens": [
+    {}
+  ],
+  "wsWinStyles": [
+    {}
+  ],
+  "wpWinPositions": [
+    {}
+  ],
+  "events": [
+    {
+      "tStartMs": 4234,
+      "dDurationMs": 4004,
+      "segs": [
+        {
+          "utf8": "The Apple Design Resources are really\na collection of different materials"
+        }
+      ]
+    },
+    {
+      "tStartMs": 8238,
+      "dDurationMs": 2236,
+      "segs": [
+        {
+          "utf8": "that we provide to people for designing apps."
+        }
+      ]
+    },
+    {
+      "tStartMs": 10474,
+      "dDurationMs": 2602,
+      "segs": [
+        {
+          "utf8": "So that includes things like UI kits"
+        }
+      ]
+    },
+    {
+      "tStartMs": 13076,
+      "dDurationMs": 3337,
+      "segs": [
+        {
+          "utf8": "or design libraries that are made\nfor Sketch or Figma,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 16680,
+      "dDurationMs": 2669,
+      "segs": [
+        {
+          "utf8": "hardware bezels, \nso that you can put screenshots"
+        }
+      ]
+    },
+    {
+      "tStartMs": 19383,
+      "dDurationMs": 3937,
+      "segs": [
+        {
+          "utf8": "of your app inside of device frames\nand then use that to present your work."
+        }
+      ]
+    },
+    {
+      "tStartMs": 23320,
+      "dDurationMs": 3804,
+      "segs": [
+        {
+          "utf8": "We also have tools like\nIcon Composer, and SF Symbols."
+        }
+      ]
+    },
+    {
+      "tStartMs": 27824,
+      "dDurationMs": 4171,
+      "segs": [
+        {
+          "utf8": "Our intention behind the design resources\nis to make it really easy for someone"
+        }
+      ]
+    },
+    {
+      "tStartMs": 31995,
+      "dDurationMs": 5673,
+      "segs": [
+        {
+          "utf8": "who wants to create an app to just grab\nthese templates, grab these components,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 37668,
+      "dDurationMs": 4104,
+      "segs": [
+        {
+          "utf8": "and really quickly put it\ninto their design tool of choice."
+        }
+      ]
+    },
+    {
+      "tStartMs": 41772,
+      "dDurationMs": 2702,
+      "segs": [
+        {
+          "utf8": "You have a degree of confidence\nthat because it's coming from"
+        }
+      ]
+    },
+    {
+      "tStartMs": 44474,
+      "dDurationMs": 4238,
+      "segs": [
+        {
+          "utf8": "Apple, it's going to be really accurate\nto how things actually look"
+        }
+      ]
+    },
+    {
+      "tStartMs": 48712,
+      "dDurationMs": 2336,
+      "segs": [
+        {
+          "utf8": "when you build apps for our platforms."
+        }
+      ]
+    },
+    {
+      "tStartMs": 51048,
+      "dDurationMs": 3336,
+      "segs": [
+        {
+          "utf8": "The hope is that it facilitates a healthier,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 54451,
+      "dDurationMs": 3737,
+      "segs": [
+        {
+          "utf8": "clearer communication\nprocess between a product designer"
+        }
+      ]
+    },
+    {
+      "tStartMs": 58188,
+      "dDurationMs": 2569,
+      "segs": [
+        {
+          "utf8": "and an engineer who's building that app"
+        }
+      ]
+    },
+    {
+      "tStartMs": 60757,
+      "dDurationMs": 4071,
+      "segs": [
+        {
+          "utf8": "and that everyone is really\nliterally speaking the same language."
+        }
+      ]
+    },
+    {
+      "tStartMs": 67531,
+      "dDurationMs": 3336,
+      "segs": [
+        {
+          "utf8": "I would say the first place you\nshould go to check out the design"
+        }
+      ]
+    },
+    {
+      "tStartMs": 70867,
+      "dDurationMs": 6240,
+      "segs": [
+        {
+          "utf8": "resources is Apple’s developer website,\nwhich is developer.apple.com/design/resources"
+        }
+      ]
+    },
+    {
+      "tStartMs": 77107,
+      "dDurationMs": 2469,
+      "segs": [
+        {
+          "utf8": "There you’re going to find\neverything that we make available."
+        }
+      ]
+    },
+    {
+      "tStartMs": 79576,
+      "dDurationMs": 2836,
+      "segs": [
+        {
+          "utf8": "If you’re a Figma user, there’s a couple\nof different ways that you"
+        }
+      ]
+    },
+    {
+      "tStartMs": 82412,
+      "dDurationMs": 2336,
+      "segs": [
+        {
+          "utf8": "can get our UI kits and our templates."
+        }
+      ]
+    },
+    {
+      "tStartMs": 84848,
+      "dDurationMs": 4204,
+      "segs": [
+        {
+          "utf8": "One would just be to go to the asset\npanel directly within the Figma UI."
+        }
+      ]
+    },
+    {
+      "tStartMs": 89386,
+      "dDurationMs": 3537,
+      "segs": [
+        {
+          "utf8": "And there you'll find all\nof our major platform libraries."
+        }
+      ]
+    },
+    {
+      "tStartMs": 92923,
+      "dDurationMs": 4371,
+      "segs": [
+        {
+          "utf8": "And another great way to find\neverything that we provide for Figma users is"
+        }
+      ]
+    },
+    {
+      "tStartMs": 97294,
+      "dDurationMs": 2669,
+      "segs": [
+        {
+          "utf8": "to navigate over to the Apple Community page."
+        }
+      ]
+    },
+    {
+      "tStartMs": 99963,
+      "dDurationMs": 2569,
+      "segs": [
+        {
+          "utf8": "And there you're going to see\neverything that we currently publish,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 102532,
+      "dDurationMs": 1802,
+      "segs": [
+        {
+          "utf8": "including our platform UI kits,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 104334,
+      "dDurationMs": 3137,
+      "segs": [
+        {
+          "utf8": "as well as all the technology\ntemplates that we share."
+        }
+      ]
+    },
+    {
+      "tStartMs": 107471,
+      "dDurationMs": 3170,
+      "segs": [
+        {
+          "utf8": "If you're a Sketch user,\nfinding our libraries is really easy."
+        }
+      ]
+    },
+    {
+      "tStartMs": 110641,
+      "dDurationMs": 4571,
+      "segs": [
+        {
+          "utf8": "You just go to the settings\nfor Sketch and go over to the library pane,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 115212,
+      "dDurationMs": 1435,
+      "segs": [
+        {
+          "utf8": "which I have selected here,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 116647,
+      "dDurationMs": 4704,
+      "segs": [
+        {
+          "utf8": "and you'll see all of the platform\nUI libraries that we provide."
+        }
+      ]
+    },
+    {
+      "tStartMs": 121385,
+      "dDurationMs": 2902,
+      "segs": [
+        {
+          "utf8": "Loading one is as simple\nas just checking a checkbox."
+        }
+      ]
+    },
+    {
+      "tStartMs": 127624,
+      "dDurationMs": 3704,
+      "segs": [
+        {
+          "utf8": "One thing I recommend checking out if\nyou're using one of our platform UI kits,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 131328,
+      "dDurationMs": 5672,
+      "segs": [
+        {
+          "utf8": "is the examples that we offer. We try to provide\na bunch of different examples."
+        }
+      ]
+    },
+    {
+      "tStartMs": 137000,
+      "dDurationMs": 2302,
+      "segs": [
+        {
+          "utf8": "Here we have them for iPhone and for iPad."
+        }
+      ]
+    },
+    {
+      "tStartMs": 139703,
+      "dDurationMs": 3770,
+      "segs": [
+        {
+          "utf8": "And they're really great\nbecause you just drag them in"
+        }
+      ]
+    },
+    {
+      "tStartMs": 143473,
+      "dDurationMs": 3270,
+      "segs": [
+        {
+          "utf8": "and you get the main component\nthat is provided with an example,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 146743,
+      "dDurationMs": 2136,
+      "segs": [
+        {
+          "utf8": "but you also get some other stuff with it,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 148879,
+      "dDurationMs": 1902,
+      "segs": [
+        {
+          "utf8": "and it just saves a huge amount of time"
+        }
+      ]
+    },
+    {
+      "tStartMs": 150781,
+      "dDurationMs": 3403,
+      "segs": [
+        {
+          "utf8": "in creating the overall interface\nfor a design comp."
+        }
+      ]
+    },
+    {
+      "tStartMs": 154184,
+      "dDurationMs": 4204,
+      "segs": [
+        {
+          "utf8": "So I think a really cool tip is that if\nyou’re in Figma here,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 158388,
+      "dDurationMs": 2236,
+      "segs": [
+        {
+          "utf8": "and I want to look at this in dark mode,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 160824,
+      "dDurationMs": 4404,
+      "segs": [
+        {
+          "utf8": "I just select the frame that all\nof these components are presented in"
+        }
+      ]
+    },
+    {
+      "tStartMs": 165228,
+      "dDurationMs": 2069,
+      "segs": [
+        {
+          "utf8": "and navigate over to the design panel,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 167330,
+      "dDurationMs": 3537,
+      "segs": [
+        {
+          "utf8": "go to the appearance section,\nand I click on this menu that has this little"
+        }
+      ]
+    },
+    {
+      "tStartMs": 170867,
+      "dDurationMs": 4205,
+      "segs": [
+        {
+          "utf8": "swatch book, and I\nfind colors and select dark."
+        }
+      ]
+    },
+    {
+      "tStartMs": 175372,
+      "dDurationMs": 4071,
+      "segs": [
+        {
+          "utf8": "And then every component that's\ninside of this frame has now redrawn"
+        }
+      ]
+    },
+    {
+      "tStartMs": 179443,
+      "dDurationMs": 1635,
+      "segs": [
+        {
+          "utf8": "to show its dark appearance."
+        }
+      ]
+    },
+    {
+      "tStartMs": 181078,
+      "dDurationMs": 4104,
+      "segs": [
+        {
+          "utf8": "And this is a true and accurate\nrepresentation of how this will look"
+        }
+      ]
+    },
+    {
+      "tStartMs": 185182,
+      "dDurationMs": 3003,
+      "segs": [
+        {
+          "utf8": "when someone is using your app\nand switches over to dark mode."
+        }
+      ]
+    },
+    {
+      "tStartMs": 191254,
+      "dDurationMs": 2403,
+      "segs": [
+        {
+          "utf8": "There's two things I think I would recommend."
+        }
+      ]
+    },
+    {
+      "tStartMs": 193657,
+      "dDurationMs": 2202,
+      "segs": [
+        {
+          "utf8": "First, if you haven't already done so."
+        }
+      ]
+    },
+    {
+      "tStartMs": 195859,
+      "dDurationMs": 2736,
+      "segs": [
+        {
+          "utf8": "Looking at the Apple Human Interface\nGuidelines in tandem"
+        }
+      ]
+    },
+    {
+      "tStartMs": 198595,
+      "dDurationMs": 2102,
+      "segs": [
+        {
+          "utf8": "with the design resources is really,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 200697,
+      "dDurationMs": 4338,
+      "segs": [
+        {
+          "utf8": "really beneficial because we have so\nmuch information about where and when"
+        }
+      ]
+    },
+    {
+      "tStartMs": 205135,
+      "dDurationMs": 3203,
+      "segs": [
+        {
+          "utf8": "and why to use different\ncomponents inside of your app’s UI"
+        }
+      ]
+    },
+    {
+      "tStartMs": 208371,
+      "dDurationMs": 4271,
+      "segs": [
+        {
+          "utf8": "that might not be immediately evident just\nby using the design kits that we provide."
+        }
+      ]
+    },
+    {
+      "tStartMs": 212642,
+      "dDurationMs": 3737,
+      "segs": [
+        {
+          "utf8": "And the second thing that I\nthink can be really helpful is if you"
+        }
+      ]
+    },
+    {
+      "tStartMs": 216379,
+      "dDurationMs": 2603,
+      "segs": [
+        {
+          "utf8": "open the files themselves,\nthe underlying files,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 218982,
+      "dDurationMs": 5906,
+      "segs": [
+        {
+          "utf8": "you'll see that there's guides\nfor colors and materials and text styles."
+        }
+      ]
+    },
+    {
+      "tStartMs": 224888,
+      "dDurationMs": 5572,
+      "segs": [
+        {
+          "utf8": "You can see sort of larger full size\nrepresentations of all of the components,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 230460,
+      "dDurationMs": 1702,
+      "segs": [
+        {
+          "utf8": "all the goodies that are inside."
+        }
+      ]
+    },
+    {
+      "tStartMs": 232395,
+      "dDurationMs": 5840,
+      "segs": [
+        {
+          "utf8": "And I think that's really a great way to just\ntake a few minutes and go through that"
+        }
+      ]
+    },
+    {
+      "tStartMs": 238235,
+      "dDurationMs": 6239,
+      "segs": [
+        {
+          "utf8": "and get a really 30,000 foot view into all\nof the system components that we provide"
+        }
+      ]
+    },
+    {
+      "tStartMs": 244474,
+      "dDurationMs": 1502,
+      "segs": [
+        {
+          "utf8": "with our operating systems."
+        }
+      ]
+    },
+    {
+      "tStartMs": 246543,
+      "dDurationMs": 2336,
+      "segs": [
+        {
+          "utf8": "A great thing about using the \nApple Design Resources"
+        }
+      ]
+    },
+    {
+      "tStartMs": 248879,
+      "dDurationMs": 3570,
+      "segs": [
+        {
+          "utf8": "is that you’ll be notified of any changes \nthat we make to the libraries,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 252449,
+      "dDurationMs": 2969,
+      "segs": [
+        {
+          "utf8": "and then if you choose to accept\nthe changes that we've made,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 255485,
+      "dDurationMs": 3337,
+      "segs": [
+        {
+          "utf8": "your design file will be updated\nto reflect the current appearance"
+        }
+      ]
+    },
+    {
+      "tStartMs": 258822,
+      "dDurationMs": 1468,
+      "segs": [
+        {
+          "utf8": "of our operating systems."
+        }
+      ]
+    },
+    {
+      "tStartMs": 263360,
+      "dDurationMs": 4771,
+      "segs": [
+        {
+          "utf8": "So as designers who are making\ndesign tools for other designers,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 268131,
+      "dDurationMs": 4138,
+      "segs": [
+        {
+          "utf8": "we know that the design resources\nhave to be really well designed."
+        }
+      ]
+    },
+    {
+      "tStartMs": 272669,
+      "dDurationMs": 3670,
+      "segs": [
+        {
+          "utf8": "So we try to meticulously\ncraft everything that's in there"
+        }
+      ]
+    },
+    {
+      "tStartMs": 276339,
+      "dDurationMs": 3871,
+      "segs": [
+        {
+          "utf8": "and make it really organized,\nvery approachable, very easy to use."
+        }
+      ]
+    },
+    {
+      "tStartMs": 280744,
+      "dDurationMs": 4838,
+      "segs": [
+        {
+          "utf8": "If we're ever falling short\nof that in any way, feedback is really,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 285582,
+      "dDurationMs": 4438,
+      "segs": [
+        {
+          "utf8": "really appreciated and we'd love\nfor you to go to Feedback Assistant"
+        }
+      ]
+    },
+    {
+      "tStartMs": 290020,
+      "dDurationMs": 3970,
+      "segs": [
+        {
+          "utf8": "and use that to let us know if\nthere's any problems that you see"
+        }
+      ]
+    },
+    {
+      "tStartMs": 294191,
+      "dDurationMs": 1534,
+      "segs": [
+        {
+          "utf8": "so that we can go ahead and fix those."
+        }
+      ]
+    },
+    {
+      "tStartMs": 295725,
+      "dDurationMs": 3971,
+      "segs": [
+        {
+          "utf8": "We're constantly iterating and trying\nto make it just better and better and better."
+        }
+      ]
+    },
+    {
+      "tStartMs": 299696,
+      "dDurationMs": 3137,
+      "segs": [
+        {
+          "utf8": "We created the Apple Design\nResources in the hopes that someone"
+        }
+      ]
+    },
+    {
+      "tStartMs": 302833,
+      "dDurationMs": 4070,
+      "segs": [
+        {
+          "utf8": "who has an idea about how\ntheir app is supposed to work is able"
+        }
+      ]
+    },
+    {
+      "tStartMs": 306903,
+      "dDurationMs": 5205,
+      "segs": [
+        {
+          "utf8": "to quickly express that idea in a way\nthat has a high degree of accuracy"
+        }
+      ]
+    },
+    {
+      "tStartMs": 312108,
+      "dDurationMs": 1669,
+      "segs": [
+        {
+          "utf8": "to how it's ultimately going to look,"
+        }
+      ]
+    },
+    {
+      "tStartMs": 313777,
+      "dDurationMs": 3904,
+      "segs": [
+        {
+          "utf8": "and then to feel confident\nthat they're going on a good path"
+        }
+      ]
+    },
+    {
+      "tStartMs": 317681,
+      "dDurationMs": 3970,
+      "segs": [
+        {
+          "utf8": "and that all of it is going\nto be a very close representation"
+        }
+      ]
+    },
+    {
+      "tStartMs": 321651,
+      "dDurationMs": 3204,
+      "segs": [
+        {
+          "utf8": "of how it's ultimately going to look\nwhen they ship their product."
+        }
+      ]
+    }
+  ]
+}

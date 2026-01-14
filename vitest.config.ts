@@ -3,11 +3,14 @@ import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { playwright } from '@vitest/browser-playwright'
 
-
 export default defineConfig({
   test: {
     projects: [
       {
+        assetsInclude: ['**/*.onnx'],
+        optimizeDeps: {
+          exclude: ['onnxruntime-web'],
+        },
         plugins: [react(), tsconfigPaths()] as any,
         test: {
           exclude: ['**/*.unit.test.ts', 'node_modules/**'],

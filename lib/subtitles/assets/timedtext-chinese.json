@@ -1,0 +1,1580 @@
+{
+  "wireMagic": "pb3",
+  "pens": [
+    {}
+  ],
+  "wsWinStyles": [
+    {}
+  ],
+  "wpWinPositions": [
+    {}
+  ],
+  "events": [
+    {
+      "tStartMs": 94,
+      "dDurationMs": 2146,
+      "segs": [
+        {
+          "utf8": "为什么流氓软件普遍只有Windows版本？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 2241,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "很多人会觉得，Mac用户太少了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 4201,
+      "dDurationMs": 2319,
+      "segs": [
+        {
+          "utf8": "Mac软件是在沙盒中，或者要签名"
+        }
+      ]
+    },
+    {
+      "tStartMs": 6521,
+      "dDurationMs": 1479,
+      "segs": [
+        {
+          "utf8": "或者Mac生态封闭"
+        }
+      ]
+    },
+    {
+      "tStartMs": 8001,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "Mac权限管理严格等等"
+        }
+      ]
+    },
+    {
+      "tStartMs": 9681,
+      "dDurationMs": 2279,
+      "segs": [
+        {
+          "utf8": "其实这些原因单拎出来是有道理的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 11961,
+      "dDurationMs": 2097,
+      "segs": [
+        {
+          "utf8": "但是有些片面，而本期视频"
+        }
+      ]
+    },
+    {
+      "tStartMs": 14081,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "我以多个角度来告诉大家"
+        }
+      ]
+    },
+    {
+      "tStartMs": 15721,
+      "dDurationMs": 2039,
+      "segs": [
+        {
+          "utf8": "一个会被普遍忽视的重要原因"
+        }
+      ]
+    },
+    {
+      "tStartMs": 17761,
+      "dDurationMs": 2799,
+      "segs": [
+        {
+          "utf8": "以及它是如何有效阻挡流氓软件的触手的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 20561,
+      "dDurationMs": 2857,
+      "segs": [
+        {
+          "utf8": "好了，本期视频冷知识科普给你答案！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 30321,
+      "dDurationMs": 1599,
+      "segs": [
+        {
+          "utf8": "首先我来说说我的结论"
+        }
+      ]
+    },
+    {
+      "tStartMs": 31921,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "Mac之所以没有流氓软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 33561,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "不是因为Mac系统安全等级高"
+        }
+      ]
+    },
+    {
+      "tStartMs": 35361,
+      "dDurationMs": 2079,
+      "segs": [
+        {
+          "utf8": "而是因为Mac的系统弹窗太多！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 37440,
+      "dDurationMs": 641,
+      "segs": [
+        {
+          "utf8": "什么？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 38081,
+      "dDurationMs": 799,
+      "segs": [
+        {
+          "utf8": "弹窗太多了？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 38880,
+      "dDurationMs": 1000,
+      "segs": [
+        {
+          "utf8": "对，你没看错！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 39881,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "这个结论是不是很让你意外？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 41561,
+      "dDurationMs": 3337,
+      "segs": [
+        {
+          "utf8": "如果你看过我之前做过老人手机流氓软件那期视频"
+        }
+      ]
+    },
+    {
+      "tStartMs": 44921,
+      "dDurationMs": 2319,
+      "segs": [
+        {
+          "utf8": "你会知道一个行业内部人士才知道的秘密："
+        }
+      ]
+    },
+    {
+      "tStartMs": 47241,
+      "dDurationMs": 1879,
+      "segs": [
+        {
+          "utf8": "流氓软件有一个非常重要的指标"
+        }
+      ]
+    },
+    {
+      "tStartMs": 49121,
+      "dDurationMs": 1137,
+      "segs": [
+        {
+          "utf8": "就是用户转化率"
+        }
+      ]
+    },
+    {
+      "tStartMs": 50361,
+      "dDurationMs": 879,
+      "segs": [
+        {
+          "utf8": "什么是转化率"
+        }
+      ]
+    },
+    {
+      "tStartMs": 51241,
+      "dDurationMs": 1399,
+      "segs": [
+        {
+          "utf8": "就比如软件安装完成后"
+        }
+      ]
+    },
+    {
+      "tStartMs": 52641,
+      "dDurationMs": 2097,
+      "segs": [
+        {
+          "utf8": "有一个不起眼的捆绑软件勾勾"
+        }
+      ]
+    },
+    {
+      "tStartMs": 54841,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "如果用户没注意把它点掉"
+        }
+      ]
+    },
+    {
+      "tStartMs": 56641,
+      "dDurationMs": 1079,
+      "segs": [
+        {
+          "utf8": "直接点了完成"
+        }
+      ]
+    },
+    {
+      "tStartMs": 57721,
+      "dDurationMs": 3177,
+      "segs": [
+        {
+          "utf8": "捆绑软件被悄无声息地安装到用户电脑"
+        }
+      ]
+    },
+    {
+      "tStartMs": 61001,
+      "dDurationMs": 1337,
+      "segs": [
+        {
+          "utf8": "这就完成了转化"
+        }
+      ]
+    },
+    {
+      "tStartMs": 62401,
+      "dDurationMs": 1399,
+      "segs": [
+        {
+          "utf8": "又比如右下角弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 63801,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "用户看到后点了一下弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 65481,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "弹出了浏览器，这也算转化"
+        }
+      ]
+    },
+    {
+      "tStartMs": 67161,
+      "dDurationMs": 1737,
+      "segs": [
+        {
+          "utf8": "而用户转化率取决于什么？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 68921,
+      "dDurationMs": 1737,
+      "segs": [
+        {
+          "utf8": "其实有一个非常关键的指标"
+        }
+      ]
+    },
+    {
+      "tStartMs": 70721,
+      "dDurationMs": 1399,
+      "segs": [
+        {
+          "utf8": "就是用户交互次数"
+        }
+      ]
+    },
+    {
+      "tStartMs": 72121,
+      "dDurationMs": 1439,
+      "segs": [
+        {
+          "utf8": "每多一个确认弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 73561,
+      "dDurationMs": 2057,
+      "segs": [
+        {
+          "utf8": "用户转化率会直接下降70%"
+        }
+      ]
+    },
+    {
+      "tStartMs": 75641,
+      "dDurationMs": 1759,
+      "segs": [
+        {
+          "utf8": "Mac并不是不会给你开权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 77401,
+      "dDurationMs": 1279,
+      "segs": [
+        {
+          "utf8": "而是Mac要开权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 78681,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "每一个权限都要弹窗确认"
+        }
+      ]
+    },
+    {
+      "tStartMs": 80641,
+      "dDurationMs": 1559,
+      "segs": [
+        {
+          "utf8": "接下来，结合弹窗问题"
+        }
+      ]
+    },
+    {
+      "tStartMs": 82201,
+      "dDurationMs": 1697,
+      "segs": [
+        {
+          "utf8": "我来聊聊大众主流观点"
+        }
+      ]
+    },
+    {
+      "tStartMs": 83921,
+      "dDurationMs": 2937,
+      "segs": [
+        {
+          "utf8": "首先大家认知最多的就是Mac系统更加安全"
+        }
+      ]
+    },
+    {
+      "tStartMs": 86881,
+      "dDurationMs": 2159,
+      "segs": [
+        {
+          "utf8": "那么对应流氓软件几种常见行为"
+        }
+      ]
+    },
+    {
+      "tStartMs": 89041,
+      "dDurationMs": 1519,
+      "segs": [
+        {
+          "utf8": "如果要在Mac下实现"
+        }
+      ]
+    },
+    {
+      "tStartMs": 90561,
+      "dDurationMs": 1137,
+      "segs": [
+        {
+          "utf8": "会遇到怎样的阻碍？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 91721,
+      "dDurationMs": 1079,
+      "segs": [
+        {
+          "utf8": "首先是捆绑安装"
+        }
+      ]
+    },
+    {
+      "tStartMs": 92801,
+      "dDurationMs": 1919,
+      "segs": [
+        {
+          "utf8": "Windows下捆绑安装非常容易"
+        }
+      ]
+    },
+    {
+      "tStartMs": 94721,
+      "dDurationMs": 2319,
+      "segs": [
+        {
+          "utf8": "因为Windows需要提权，只有一个弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 97041,
+      "dDurationMs": 2479,
+      "segs": [
+        {
+          "utf8": "就是UAC弹窗，而你打开一个安装程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 99521,
+      "dDurationMs": 1399,
+      "segs": [
+        {
+          "utf8": "肯定需要较高权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 100921,
+      "dDurationMs": 4719,
+      "segs": [
+        {
+          "utf8": "大家普遍认知就是安装程序打开之前肯定是要有一个UAC弹窗交互"
+        }
+      ]
+    },
+    {
+      "tStartMs": 105641,
+      "dDurationMs": 2919,
+      "segs": [
+        {
+          "utf8": "这导致大多数用户会默许这个UAC弹窗交互"
+        }
+      ]
+    },
+    {
+      "tStartMs": 108561,
+      "dDurationMs": 2319,
+      "segs": [
+        {
+          "utf8": "这种一刀切的策略，导致不点确定"
+        }
+      ]
+    },
+    {
+      "tStartMs": 110881,
+      "dDurationMs": 1577,
+      "segs": [
+        {
+          "utf8": "整个安装程序都不能启动"
+        }
+      ]
+    },
+    {
+      "tStartMs": 112641,
+      "dDurationMs": 2239,
+      "segs": [
+        {
+          "utf8": "而Windows安装程序还有一个严重弊病"
+        }
+      ]
+    },
+    {
+      "tStartMs": 114881,
+      "dDurationMs": 1199,
+      "segs": [
+        {
+          "utf8": "就是大多数软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 116081,
+      "dDurationMs": 3119,
+      "segs": [
+        {
+          "utf8": "特别是流氓软件的安装程序本身就是一个可执行程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 119201,
+      "dDurationMs": 3039,
+      "segs": [
+        {
+          "utf8": "虽然Windows早就有诸如msi格式的安装程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 122241,
+      "dDurationMs": 1719,
+      "segs": [
+        {
+          "utf8": "但没有强制规定使用"
+        }
+      ]
+    },
+    {
+      "tStartMs": 123961,
+      "dDurationMs": 1839,
+      "segs": [
+        {
+          "utf8": "这必然导致绝大多数国产软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 125801,
+      "dDurationMs": 1559,
+      "segs": [
+        {
+          "utf8": "都有自己设计的安装程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 127360,
+      "dDurationMs": 601,
+      "segs": [
+        {
+          "utf8": "也就是说"
+        }
+      ]
+    },
+    {
+      "tStartMs": 127961,
+      "dDurationMs": 2617,
+      "segs": [
+        {
+          "utf8": "由于这些安装程序本质是一个可执行程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 130601,
+      "dDurationMs": 1519,
+      "segs": [
+        {
+          "utf8": "除了启动时的UAC弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 132121,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "完全可以刻意做到0交互"
+        }
+      ]
+    },
+    {
+      "tStartMs": 133921,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "静默安装其他捆绑软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 135601,
+      "dDurationMs": 3137,
+      "segs": [
+        {
+          "utf8": "更麻烦的是，UAC授权是有继承性"
+        }
+      ]
+    },
+    {
+      "tStartMs": 138738,
+      "dDurationMs": 783,
+      "segs": [
+        {
+          "utf8": "也就是说"
+        }
+      ]
+    },
+    {
+      "tStartMs": 139521,
+      "dDurationMs": 2879,
+      "segs": [
+        {
+          "utf8": "A安装包倘若包含了BCD捆绑软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 142401,
+      "dDurationMs": 1239,
+      "segs": [
+        {
+          "utf8": "A安装包启动的时候"
+        }
+      ]
+    },
+    {
+      "tStartMs": 143641,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "UAC弹窗交互通过之后"
+        }
+      ]
+    },
+    {
+      "tStartMs": 145441,
+      "dDurationMs": 2559,
+      "segs": [
+        {
+          "utf8": "BCD捆绑软件都也不必再弹窗确认了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 148001,
+      "dDurationMs": 1737,
+      "segs": [
+        {
+          "utf8": "全都可以实现无感觉安装"
+        }
+      ]
+    },
+    {
+      "tStartMs": 149961,
+      "dDurationMs": 879,
+      "segs": [
+        {
+          "utf8": "而Mac是怎样的呢？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 150841,
+      "dDurationMs": 1359,
+      "segs": [
+        {
+          "utf8": "Mac软件除了Appstore"
+        }
+      ]
+    },
+    {
+      "tStartMs": 152201,
+      "dDurationMs": 1319,
+      "segs": [
+        {
+          "utf8": "还有2种安装方式"
+        }
+      ]
+    },
+    {
+      "tStartMs": 153521,
+      "dDurationMs": 1919,
+      "segs": [
+        {
+          "utf8": "一种是通过DMG镜像文件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 155441,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "直接拖动程序到Application文件夹"
+        }
+      ]
+    },
+    {
+      "tStartMs": 157240,
+      "dDurationMs": 561,
+      "segs": [
+        {
+          "utf8": "注意了！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 157801,
+      "dDurationMs": 1399,
+      "segs": [
+        {
+          "utf8": "这个必须用户来拖动"
+        }
+      ]
+    },
+    {
+      "tStartMs": 159201,
+      "dDurationMs": 2199,
+      "segs": [
+        {
+          "utf8": "第二种是采用pkg安装包安装"
+        }
+      ]
+    },
+    {
+      "tStartMs": 161401,
+      "dDurationMs": 2279,
+      "segs": [
+        {
+          "utf8": "这种类似windows的msi安装程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 163681,
+      "dDurationMs": 3359,
+      "segs": [
+        {
+          "utf8": "而这个pkg安装程序本质不是可执行程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 167041,
+      "dDurationMs": 1719,
+      "segs": [
+        {
+          "utf8": "而是一个安装包+安装脚本"
+        }
+      ]
+    },
+    {
+      "tStartMs": 168761,
+      "dDurationMs": 1297,
+      "segs": [
+        {
+          "utf8": "大家有没有看出区别？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 170241,
+      "dDurationMs": 1839,
+      "segs": [
+        {
+          "utf8": "那就是Mac软件安装全过程"
+        }
+      ]
+    },
+    {
+      "tStartMs": 172081,
+      "dDurationMs": 2297,
+      "segs": [
+        {
+          "utf8": "软件程序本身是0参与的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 174441,
+      "dDurationMs": 999,
+      "segs": [
+        {
+          "utf8": "不像Windows那样"
+        }
+      ]
+    },
+    {
+      "tStartMs": 175441,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "安装程序本身就是可执行程序"
+        }
+      ]
+    },
+    {
+      "tStartMs": 177401,
+      "dDurationMs": 1777,
+      "segs": [
+        {
+          "utf8": "流氓软件想怎么做就怎么做"
+        }
+      ]
+    },
+    {
+      "tStartMs": 179321,
+      "dDurationMs": 2519,
+      "segs": [
+        {
+          "utf8": "Mac软件安装全过程都是Mac系统控制的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 181841,
+      "dDurationMs": 2799,
+      "segs": [
+        {
+          "utf8": "这就意味着捆绑应用在这一步就行不通"
+        }
+      ]
+    },
+    {
+      "tStartMs": 184641,
+      "dDurationMs": 1719,
+      "segs": [
+        {
+          "utf8": "除了这些，Mac还有一道控制能力"
+        }
+      ]
+    },
+    {
+      "tStartMs": 186361,
+      "dDurationMs": 959,
+      "segs": [
+        {
+          "utf8": "就是证书控制"
+        }
+      ]
+    },
+    {
+      "tStartMs": 187321,
+      "dDurationMs": 2559,
+      "segs": [
+        {
+          "utf8": "Mac的所有应用本身都有数字签名的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 189881,
+      "dDurationMs": 1559,
+      "segs": [
+        {
+          "utf8": "假如流氓软件出了Mac版"
+        }
+      ]
+    },
+    {
+      "tStartMs": 191441,
+      "dDurationMs": 919,
+      "segs": [
+        {
+          "utf8": "用了各种黑科技"
+        }
+      ]
+    },
+    {
+      "tStartMs": 192361,
+      "dDurationMs": 1079,
+      "segs": [
+        {
+          "utf8": "突破了系统限制"
+        }
+      ]
+    },
+    {
+      "tStartMs": 193441,
+      "dDurationMs": 2497,
+      "segs": [
+        {
+          "utf8": "利用各种bug强制实现捆绑安装"
+        }
+      ]
+    },
+    {
+      "tStartMs": 196121,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "其实10年前就有公司这么做了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 198081,
+      "dDurationMs": 1159,
+      "segs": [
+        {
+          "utf8": "后面被苹果发现了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 199241,
+      "dDurationMs": 1337,
+      "segs": [
+        {
+          "utf8": "导致证书直接拉黑"
+        }
+      ]
+    },
+    {
+      "tStartMs": 200801,
+      "dDurationMs": 3159,
+      "segs": [
+        {
+          "utf8": "因为Mac下启动应用程序的时候都会检查签名"
+        }
+      ]
+    },
+    {
+      "tStartMs": 203961,
+      "dDurationMs": 1759,
+      "segs": [
+        {
+          "utf8": "一旦发现是黑名单的厂家出的软件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 205721,
+      "dDurationMs": 2319,
+      "segs": [
+        {
+          "utf8": "立马会提示你把软件移动到废纸篓"
+        }
+      ]
+    },
+    {
+      "tStartMs": 208041,
+      "dDurationMs": 1119,
+      "segs": [
+        {
+          "utf8": "如果一定要运行"
+        }
+      ]
+    },
+    {
+      "tStartMs": 209161,
+      "dDurationMs": 3519,
+      "segs": [
+        {
+          "utf8": "还得专门去系统设置-安全里面-点击仍然运行"
+        }
+      ]
+    },
+    {
+      "tStartMs": 212681,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "而且还要输入密码来二次确认"
+        }
+      ]
+    },
+    {
+      "tStartMs": 214361,
+      "dDurationMs": 3097,
+      "segs": [
+        {
+          "utf8": "这运行门槛已经把流氓软件直接枪毙好几十回了！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 217521,
+      "dDurationMs": 1559,
+      "segs": [
+        {
+          "utf8": "如果流氓软件要实现一个功能"
+        }
+      ]
+    },
+    {
+      "tStartMs": 219081,
+      "dDurationMs": 3519,
+      "segs": [
+        {
+          "utf8": "根据用户浏览器访问记录来实现不同广告推送逻辑"
+        }
+      ]
+    },
+    {
+      "tStartMs": 222601,
+      "dDurationMs": 1457,
+      "segs": [
+        {
+          "utf8": "这个Mac上能做到吗？"
+        }
+      ]
+    },
+    {
+      "tStartMs": 224281,
+      "dDurationMs": 2839,
+      "segs": [
+        {
+          "utf8": "Windows下可以直接读取你的浏览器访问记录就可以完成"
+        }
+      ]
+    },
+    {
+      "tStartMs": 227121,
+      "dDurationMs": 2079,
+      "segs": [
+        {
+          "utf8": "而Mac下很难，首先标准权限下"
+        }
+      ]
+    },
+    {
+      "tStartMs": 229201,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "你能访问的文件非常有限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 231001,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "别说其他应用所属文件夹"
+        }
+      ]
+    },
+    {
+      "tStartMs": 232961,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "连访问用户的“下载”文件夹"
+        }
+      ]
+    },
+    {
+      "tStartMs": 234601,
+      "dDurationMs": 1039,
+      "segs": [
+        {
+          "utf8": "都要各种弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 235641,
+      "dDurationMs": 1199,
+      "segs": [
+        {
+          "utf8": "而且是每访问一种文件夹"
+        }
+      ]
+    },
+    {
+      "tStartMs": 236841,
+      "dDurationMs": 1439,
+      "segs": [
+        {
+          "utf8": "都要单独弹窗确认"
+        }
+      ]
+    },
+    {
+      "tStartMs": 238281,
+      "dDurationMs": 2839,
+      "segs": [
+        {
+          "utf8": "不过Mac提供了一个完整的磁盘访问选项"
+        }
+      ]
+    },
+    {
+      "tStartMs": 241121,
+      "dDurationMs": 2817,
+      "segs": [
+        {
+          "utf8": "而这个选项还不能通过弹窗来允许"
+        }
+      ]
+    },
+    {
+      "tStartMs": 244001,
+      "dDurationMs": 1919,
+      "segs": [
+        {
+          "utf8": "是要用户自己主动点开设置"
+        }
+      ]
+    },
+    {
+      "tStartMs": 245921,
+      "dDurationMs": 1897,
+      "segs": [
+        {
+          "utf8": "然后主动点击对应的应用"
+        }
+      ]
+    },
+    {
+      "tStartMs": 248001,
+      "dDurationMs": 1799,
+      "segs": [
+        {
+          "utf8": "点击了之后，还要重启应用"
+        }
+      ]
+    },
+    {
+      "tStartMs": 249801,
+      "dDurationMs": 1137,
+      "segs": [
+        {
+          "utf8": "才能授予权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 251121,
+      "dDurationMs": 1199,
+      "segs": [
+        {
+          "utf8": "包括其他类似敏感权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 252321,
+      "dDurationMs": 1377,
+      "segs": [
+        {
+          "utf8": "包括简单的截图"
+        }
+      ]
+    },
+    {
+      "tStartMs": 253721,
+      "dDurationMs": 2359,
+      "segs": [
+        {
+          "utf8": "都要用户自己在设置里手动点击允许"
+        }
+      ]
+    },
+    {
+      "tStartMs": 256081,
+      "dDurationMs": 1359,
+      "segs": [
+        {
+          "utf8": "Mac这么设计的目的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 257441,
+      "dDurationMs": 3359,
+      "segs": [
+        {
+          "utf8": "就是要用户非常清晰明确的允许给到应用权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 260801,
+      "dDurationMs": 1759,
+      "segs": [
+        {
+          "utf8": "而Windows只有一个UAC弹窗"
+        }
+      ]
+    },
+    {
+      "tStartMs": 262561,
+      "dDurationMs": 2857,
+      "segs": [
+        {
+          "utf8": "鬼知道同意之后会给你后台偷偷干什么事情"
+        }
+      ]
+    },
+    {
+      "tStartMs": 265481,
+      "dDurationMs": 1879,
+      "segs": [
+        {
+          "utf8": "刚刚提到完全磁盘访问权限"
+        }
+      ]
+    },
+    {
+      "tStartMs": 267361,
+      "dDurationMs": 879,
+      "segs": [
+        {
+          "utf8": "即便开启了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 268241,
+      "dDurationMs": 1359,
+      "segs": [
+        {
+          "utf8": "你也是动不了系统文件的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 269601,
+      "dDurationMs": 2079,
+      "segs": [
+        {
+          "utf8": "因为Mac还有一个SIP技术"
+        }
+      ]
+    },
+    {
+      "tStartMs": 271681,
+      "dDurationMs": 2039,
+      "segs": [
+        {
+          "utf8": "可以保护系统文件全部只读"
+        }
+      ]
+    },
+    {
+      "tStartMs": 273721,
+      "dDurationMs": 1479,
+      "segs": [
+        {
+          "utf8": "即便是root权限，也不能改"
+        }
+      ]
+    },
+    {
+      "tStartMs": 275201,
+      "dDurationMs": 2159,
+      "segs": [
+        {
+          "utf8": "而且Big Sur之后，还加了签名验证"
+        }
+      ]
+    },
+    {
+      "tStartMs": 277361,
+      "dDurationMs": 2559,
+      "segs": [
+        {
+          "utf8": "就是说系统文件不仅只读，还有校验"
+        }
+      ]
+    },
+    {
+      "tStartMs": 279921,
+      "dDurationMs": 1697,
+      "segs": [
+        {
+          "utf8": "并对系统进程运行时保护"
+        }
+      ]
+    },
+    {
+      "tStartMs": 281641,
+      "dDurationMs": 1319,
+      "segs": [
+        {
+          "utf8": "也就是说禁止调试"
+        }
+      ]
+    },
+    {
+      "tStartMs": 282961,
+      "dDurationMs": 1897,
+      "segs": [
+        {
+          "utf8": "以及对内核扩展的保护"
+        }
+      ]
+    },
+    {
+      "tStartMs": 285001,
+      "dDurationMs": 3257,
+      "segs": [
+        {
+          "utf8": "这个类似windows的drivers中的sys文件"
+        }
+      ]
+    },
+    {
+      "tStartMs": 288481,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "windows安装sys驱动"
+        }
+      ]
+    },
+    {
+      "tStartMs": 290121,
+      "dDurationMs": 977,
+      "segs": [
+        {
+          "utf8": "还是门槛很低的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 291361,
+      "dDurationMs": 2257,
+      "segs": [
+        {
+          "utf8": "sys驱动能干的事情更加底层"
+        }
+      ]
+    },
+    {
+      "tStartMs": 293721,
+      "dDurationMs": 2137,
+      "segs": [
+        {
+          "utf8": "现代杀毒软件主防基本要靠它"
+        }
+      ]
+    },
+    {
+      "tStartMs": 296281,
+      "dDurationMs": 2639,
+      "segs": [
+        {
+          "utf8": "最后我再聊聊mac用户比windows少这种说法"
+        }
+      ]
+    },
+    {
+      "tStartMs": 298921,
+      "dDurationMs": 1279,
+      "segs": [
+        {
+          "utf8": "确实，从总数来看"
+        }
+      ]
+    },
+    {
+      "tStartMs": 300201,
+      "dDurationMs": 1817,
+      "segs": [
+        {
+          "utf8": "windows用户肯定远比mac多"
+        }
+      ]
+    },
+    {
+      "tStartMs": 302161,
+      "dDurationMs": 1679,
+      "segs": [
+        {
+          "utf8": "虽然从全球趋势上看"
+        }
+      ]
+    },
+    {
+      "tStartMs": 303841,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "Mac用户占比在增加的"
+        }
+      ]
+    },
+    {
+      "tStartMs": 305481,
+      "dDurationMs": 2377,
+      "segs": [
+        {
+          "utf8": "但Mac用户普遍为职场打工人"
+        }
+      ]
+    },
+    {
+      "tStartMs": 308001,
+      "dDurationMs": 2359,
+      "segs": [
+        {
+          "utf8": "我记得我有一次去某南极公司拜访"
+        }
+      ]
+    },
+    {
+      "tStartMs": 310361,
+      "dDurationMs": 999,
+      "segs": [
+        {
+          "utf8": "我惊奇的发现"
+        }
+      ]
+    },
+    {
+      "tStartMs": 311361,
+      "dDurationMs": 1719,
+      "segs": [
+        {
+          "utf8": "他们的员工绝大多数都是Mac"
+        }
+      ]
+    },
+    {
+      "tStartMs": 313081,
+      "dDurationMs": 2239,
+      "segs": [
+        {
+          "utf8": "更有趣的是，连微软自己的员工"
+        }
+      ]
+    },
+    {
+      "tStartMs": 315321,
+      "dDurationMs": 2417,
+      "segs": [
+        {
+          "utf8": "都果断抛弃自家产品，转向Mac"
+        }
+      ]
+    },
+    {
+      "tStartMs": 317840,
+      "dDurationMs": 721,
+      "segs": [
+        {
+          "utf8": "但你要知道"
+        }
+      ]
+    },
+    {
+      "tStartMs": 318561,
+      "dDurationMs": 2199,
+      "segs": [
+        {
+          "utf8": "流氓软件一定是主攻下沉用户"
+        }
+      ]
+    },
+    {
+      "tStartMs": 320761,
+      "dDurationMs": 1959,
+      "segs": [
+        {
+          "utf8": "毕竟他们的手段主要是靠忽悠"
+        }
+      ]
+    },
+    {
+      "tStartMs": 322721,
+      "dDurationMs": 1279,
+      "segs": [
+        {
+          "utf8": "在一个无法捆绑安装"
+        }
+      ]
+    },
+    {
+      "tStartMs": 324001,
+      "dDurationMs": 1439,
+      "segs": [
+        {
+          "utf8": "无法直接窃取隐私"
+        }
+      ]
+    },
+    {
+      "tStartMs": 325441,
+      "dDurationMs": 1519,
+      "segs": [
+        {
+          "utf8": "还会又被拉黑风险"
+        }
+      ]
+    },
+    {
+      "tStartMs": 326961,
+      "dDurationMs": 2519,
+      "segs": [
+        {
+          "utf8": "以及难以获取底层高权限的环境"
+        }
+      ]
+    },
+    {
+      "tStartMs": 329481,
+      "dDurationMs": 1617,
+      "segs": [
+        {
+          "utf8": "最终用户还不够下沉"
+        }
+      ]
+    },
+    {
+      "tStartMs": 331161,
+      "dDurationMs": 1599,
+      "segs": [
+        {
+          "utf8": "所以，流氓软件公司现阶段"
+        }
+      ]
+    },
+    {
+      "tStartMs": 332761,
+      "dDurationMs": 1039,
+      "segs": [
+        {
+          "utf8": "只能劝退了！"
+        }
+      ]
+    },
+    {
+      "tStartMs": 333801,
+      "dDurationMs": 1639,
+      "segs": [
+        {
+          "utf8": "好了，这就是本期视频全部内容了"
+        }
+      ]
+    },
+    {
+      "tStartMs": 335441,
+      "dDurationMs": 1808,
+      "segs": [
+        {
+          "utf8": "想知道冷知识，记得关注我哦！"
+        }
+      ]
+    }
+  ]
+}
