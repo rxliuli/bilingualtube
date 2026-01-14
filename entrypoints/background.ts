@@ -1,6 +1,5 @@
 import { messager } from '@/lib/message'
 import { getMergedSettings, Settings } from '@/lib/settings'
-import { restorePunctuationInSubtitles } from '@/lib/subtitles/restorePunctuationInSubtitles'
 import { microsoft } from '@/lib/translate/microsoft'
 import { openai } from '@/lib/translate/openai'
 import { get, set } from 'idb-keyval'

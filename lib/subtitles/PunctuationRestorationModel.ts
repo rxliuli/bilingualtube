@@ -2,19 +2,19 @@ import * as ort from 'onnxruntime-web/wasm'
 import { BPETokenizer } from './bpeTokenizer'
 
 export interface TimedToken {
-  start: number // 开始时间（秒）
-  end: number // 结束时间（秒）
-  text: string // 原始文本（小写，无标点）
+  start: number
+  end: number
+  text: string
 }
 
 export interface AnnotatedToken extends TimedToken {
-  casedText: string // 转换大小写后的文本
-  punctuation: string // 要添加的标点符号
+  casedText: string
+  punctuation: string
   caseType: 'LOWER' | 'UPPER' | 'CAP' | 'MIX'
   punctType: 'NONE' | 'COMMA' | 'PERIOD' | 'QUESTION'
 }
 
-// 标点和大小写映射
+// Punctuation and case mapping
 const PUNCT_MAP: Record<number, string> = {
   0: '', // NO_PUNCT
   1: ',', // COMMA
@@ -52,7 +52,7 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * 设置窗口参数（基于 token 数量，而非词数）
+   * Set window config (based on token count, not word count)
    */
   setWindowConfig(maxTokensPerWindow: number, overlap: number) {
     if (maxTokensPerWindow > this.maxSeqLength - 20) {
@@ -69,14 +69,14 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * 使用双指针匹配将 BPE tokens 映射回原始单词
+   * Map BPE tokens back to original words using two-pointer matching
    */
   private matchBPEToWords(
     words: string[],
     bpeTokenIds: number[],
     validIds: number[],
   ): Map<number, number[]> {
-    // 返回：wordIndex -> [bpeTokenIndices]
+    // Returns: wordIndex -> [bpeTokenIndices]
     const wordToBPE = new Map<number, number[]>()
 
     if (!this.tokenizer) throw new Error('Tokenizer not loaded')
@@ -84,13 +84,13 @@ export class PunctuationRestorationModel {
     let wordIdx = 0
     let bpeIdx = 0
 
-    // 跳过开始标记 <s>
+    // Skip start token <s>
     if (bpeTokenIds[0] === this.tokenizer.pieceToId('<s>')) {
       bpeIdx = 1
     }
 
     while (wordIdx < words.length && bpeIdx < bpeTokenIds.length) {
-      // 跳过结束标记
+      // Skip end token
       if (bpeTokenIds[bpeIdx] === this.tokenizer.pieceToId('</s>')) {
         break
       }
@@ -98,27 +98,27 @@ export class PunctuationRestorationModel {
       const bpeIndices: number[] = []
       const currentWord = words[wordIdx].toLowerCase()
 
-      // 累积 BPE tokens 直到匹配当前单词
+      // Accumulate BPE tokens until matching current word
       let accumulatedText = ''
 
       while (bpeIdx < bpeTokenIds.length) {
         const bpeToken = this.tokenizer.decode([bpeTokenIds[bpeIdx]])
         accumulatedText += bpeToken
 
-        // 只记录 valid 的 token 索引
+        // Only record valid token indices
         if (validIds[bpeIdx] === 1) {
           bpeIndices.push(bpeIdx)
         }
 
         bpeIdx++
 
-        // 检查是否匹配当前单词（移除空格和 ▁ 符号）
+        // Check if it matches current word (remove spaces and ▁ symbol)
         const normalized = accumulatedText.replace(/[▁\s]/g, '').toLowerCase()
         if (normalized === currentWord) {
           break
         }
 
-        // 防止无限循环
+        // Prevent infinite loop
         if (bpeIdx >= bpeTokenIds.length) break
       }
 
@@ -133,7 +133,7 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * 将预测结果映射回原始 tokens（简化版：直接索引映射）
+   * Map predictions back to original tokens (simplified: direct index mapping)
    */
   private mapPredictionsToTokens(
     tokens: TimedToken[],
@@ -142,8 +142,8 @@ export class PunctuationRestorationModel {
     punctPred: number[],
   ): AnnotatedToken[] {
     return tokens.map((token, wordIdx) => {
-      // 直接使用词索引获取预测（模型输出已经去掉了 <s> 和 </s>）
-      // 预测结果的索引直接对应词的索引
+      // Use word index directly to get predictions (model output already excludes <s> and </s>)
+      // Prediction indices directly correspond to word indices
       const caseType = casePred[wordIdx] !== undefined ? casePred[wordIdx] : 0
       const punctType =
         punctPred[wordIdx] !== undefined ? punctPred[wordIdx] : 0
@@ -159,50 +159,32 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * 主函数：为带时间戳的 tokens 添加标点和大小写（支持自动分段）
+   * Streaming processing: use AsyncGenerator for window-by-window output
    */
-  async annotatePunctuation(tokens: TimedToken[]): Promise<AnnotatedToken[]> {
+  async *annotate(
+    tokens: TimedToken[],
+  ): AsyncGenerator<AnnotatedToken[], AnnotatedToken[]> {
     if (!this.session || !this.tokenizer) {
       throw new Error('Model not loaded. Call load() first.')
     }
 
-    // 先整体 tokenize 一次，判断是否需要分段
+    // First tokenize the entire text to determine if segmentation is needed
     const fullText = tokens.map((t) => t.text).join(' ')
     const { tokenIds } = this.tokenizer.encode(fullText)
 
-    // console.log(
-    //   `📊 Total tokens: ${tokens.length} words → ${tokenIds.length} BPE tokens`,
-    // )
-
-    // 如果 BPE tokens 数量在限制内，直接处理
+    // If BPE token count is within limit, process directly
     if (tokenIds.length <= this.maxTokensPerWindow) {
-      return this.annotatePunctuationSingleWindow(tokens)
+      const results = await this.processWindow(tokens)
+      yield results
+      return results
     }
 
-    // 否则使用基于 token 长度的滑动窗口
-    return this.annotatePunctuationWithTokenBasedWindow(tokens)
-  }
-
-  /**
-   * 基于 BPE token 长度的智能分窗口
-   */
-  private async annotatePunctuationWithTokenBasedWindow(
-    tokens: TimedToken[],
-  ): Promise<AnnotatedToken[]> {
-    if (!this.tokenizer) throw new Error('Tokenizer not loaded')
-
-    // console.log(
-    //   `🪟 Using token-based sliding window (max=${this.maxTokensPerWindow} tokens, overlap=${this.overlap})`,
-    // )
-
+    // Sliding window processing
     const results: AnnotatedToken[] = []
     let wordStart = 0
-    let windowCount = 0
 
     while (wordStart < tokens.length) {
-      windowCount++
-
-      // 从当前位置开始，累积词直到达到 token 限制
+      // Calculate window boundaries
       let wordEnd = wordStart
       let currentTokenCount = 0
 
@@ -210,7 +192,6 @@ export class PunctuationRestorationModel {
         wordEnd < tokens.length &&
         currentTokenCount < this.maxTokensPerWindow
       ) {
-        // 试探性 tokenize
         const testText = tokens
           .slice(wordStart, wordEnd + 1)
           .map((t) => t.text)
@@ -218,7 +199,6 @@ export class PunctuationRestorationModel {
         const { tokenIds } = this.tokenizer.encode(testText)
 
         if (tokenIds.length > this.maxTokensPerWindow) {
-          // 超过限制，回退一个词
           break
         }
 
@@ -226,24 +206,15 @@ export class PunctuationRestorationModel {
         wordEnd++
       }
 
-      // 确保至少处理一些词
       if (wordEnd === wordStart) {
         wordEnd = wordStart + 1
       }
 
       const windowTokens = tokens.slice(wordStart, wordEnd)
+      const windowResults = await this.processWindow(windowTokens)
 
-      // console.log(
-      //   `🪟 Window ${windowCount}: words ${wordStart}-${wordEnd} (${windowTokens.length} words, ~${currentTokenCount} tokens)`,
-      // )
-
-      // 处理当前窗口
-      const windowResults = await this.annotatePunctuationSingleWindow(
-        windowTokens,
-      )
-
-      // 处理重叠：只保留非重叠部分
-      const overlapWords = Math.floor(this.overlap / 2) // 估算词级别的重叠
+      // Handle overlap: only keep non-overlapping parts
+      const overlapWords = Math.floor(this.overlap / 2)
       const keepStart = wordStart === 0 ? 0 : overlapWords
       const keepEnd =
         wordEnd >= tokens.length
@@ -256,70 +227,47 @@ export class PunctuationRestorationModel {
         }
       }
 
-      // 移动窗口（考虑重叠）
+      // Move window
       wordStart = wordEnd - overlapWords * 2
-
-      // 防止无限循环
       if (wordStart <= wordEnd - windowTokens.length) {
         wordStart = wordEnd
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 0)) // 让出事件循环
-    }
+      yield [...results]
 
-    // console.log(
-    //   `✅ Processed ${results.length} tokens in ${windowCount} windows`,
-    // )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
 
     return results
   }
 
   /**
-   * 处理单个窗口（原有逻辑）
+   * Process a single window
    */
-  private async annotatePunctuationSingleWindow(
-    tokens: TimedToken[],
-  ): Promise<AnnotatedToken[]> {
+  private async processWindow(tokens: TimedToken[]): Promise<AnnotatedToken[]> {
     if (!this.session || !this.tokenizer) {
       throw new Error('Model not loaded. Call load() first.')
     }
 
-    // 1. 提取文本并 tokenize
     const text = tokens.map((t) => t.text).join(' ')
     const words = tokens.map((t) => t.text)
 
     const { tokenIds, wordBoundaries } = this.tokenizer.encode(text)
 
-    // 2. 创建 valid_ids (只标记词边界位置)
+    // Create valid_ids (only mark word boundary positions)
     const validIds = new Array(this.maxSeqLength).fill(0)
-
-    // 标记词边界位置为 valid
     for (const boundary of wordBoundaries) {
       if (boundary < this.maxSeqLength) {
         validIds[boundary] = 1
       }
     }
 
-    // const validCount = wordBoundaries.length
-
-    // console.log('Tokenization info:', {
-    //   text,
-    //   words,
-    //   tokenIds: tokenIds.slice(0, 20),
-    //   tokenIdsLength: tokenIds.length,
-    //   wordBoundaries,
-    //   validIds: validIds.slice(0, 20),
-    //   validCount,
-    // })
-
-    // 3. 截断到最大序列长度（重要！）
+    // Truncate to max sequence length
     const truncatedTokenIds = tokenIds.slice(0, this.maxSeqLength)
     const truncatedValidIds = validIds.slice(0, this.maxSeqLength)
-
-    // 重新计算 validCount
     const actualValidCount = truncatedValidIds.filter((v) => v === 1).length
 
-    // 4. Padding
+    // Padding
     const paddedTokenIds = [...truncatedTokenIds]
     while (paddedTokenIds.length < this.maxSeqLength) {
       paddedTokenIds.push(0)
@@ -330,7 +278,7 @@ export class PunctuationRestorationModel {
       paddedValidIds.push(0)
     }
 
-    // 5. 准备模型输入
+    // Prepare model input
     const inputTokenIds = new ort.Tensor(
       'int32',
       new Int32Array(paddedTokenIds),
@@ -347,7 +295,7 @@ export class PunctuationRestorationModel {
       [1],
     )
 
-    // 6. 运行模型
+    // Run model
     const feeds: Record<string, ort.Tensor> = {}
     feeds[this.session.inputNames[0]] = inputTokenIds
     feeds[this.session.inputNames[1]] = inputValidIds
@@ -355,7 +303,7 @@ export class PunctuationRestorationModel {
 
     const results = await this.session.run(feeds)
 
-    // 7. 解析输出
+    // Parse output
     const outputNames = this.session.outputNames
     const caseLogits = results[outputNames[0]].data as Float32Array
     const punctLogits = results[outputNames[1]].data as Float32Array
@@ -364,7 +312,7 @@ export class PunctuationRestorationModel {
     const punctClasses = 4
     const numPredictions = caseLogits.length / caseClasses
 
-    // 8. 获取预测结果（argmax）
+    // Get prediction results (argmax)
     const casePred: number[] = []
     const punctPred: number[] = []
 
@@ -390,38 +338,20 @@ export class PunctuationRestorationModel {
       punctPred.push(maxPunctIdx)
     }
 
-    // 9. 双指针匹配：BPE tokens -> 原始单词
+    // Two-pointer matching: BPE tokens -> original words
     const wordToBPE = this.matchBPEToWords(words, paddedTokenIds, validIds)
-
-    // console.log('Model predictions:', {
-    //   numPredictions,
-    //   wordCount: words.length,
-    //   validCount: actualValidCount,
-    //   tokenIdsLength: tokenIds.length,
-    //   truncated: tokenIds.length > this.maxSeqLength,
-    //   casePred: casePred.slice(0, 15),
-    //   punctPred: punctPred.slice(0, 15),
-    //   caseMapping: words.slice(0, 10).map((w, i) => ({
-    //     word: w,
-    //     caseType: CASE_TYPE_MAP[casePred[i]] || 'UNDEFINED',
-    //     punctType: PUNCT_TYPE_MAP[punctPred[i]] || 'UNDEFINED',
-    //   })),
-    //   caseLogitsSize: caseLogits.length,
-    //   punctLogitsSize: punctLogits.length,
-    // })
 
     if (tokenIds.length > this.maxSeqLength) {
       console.warn(
-        `⚠️ Input text is too long! Truncated from ${tokenIds.length} to ${this.maxSeqLength} tokens. Some words may not be processed.`,
+        `⚠️ Input text is too long! Truncated from ${tokenIds.length} to ${this.maxSeqLength} tokens.`,
       )
     }
 
-    // 10. 映射预测结果到原始 tokens（简化：直接用索引）
     return this.mapPredictionsToTokens(tokens, wordToBPE, casePred, punctPred)
   }
 
   /**
-   * 辅助函数：将标注结果渲染为带标点的文本
+   * Helper function: render annotated tokens as punctuated text
    */
   renderAnnotatedTokens(tokens: AnnotatedToken[]): string {
     return tokens.map((t) => t.casedText + t.punctuation).join(' ')

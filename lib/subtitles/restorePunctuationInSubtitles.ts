@@ -3,22 +3,24 @@ import { BPETokenizer } from './bpeTokenizer'
 import {
   TimedToken,
   PunctuationRestorationModel,
-} from './punctuationRestoration'
+  AnnotatedToken,
+} from './PunctuationRestorationModel'
 
-/**
- * 使用 LLM 对缺少标点符号的字幕进行标点修复
- * tip: 仅支持英文字幕
- * @param tokens
- * @returns
- */
-export async function restorePunctuationInSubtitles(
-  tokens: TimedToken[],
-  options?: {
-    wasmUrl: string
-    sherpaModelPath: string
-    sherpaVocabPath: string
-  },
-): Promise<TimedToken[]> {
+function mapAnnotatedToTimed(tokens: AnnotatedToken[]): TimedToken[] {
+  return tokens.map((t) => ({
+    ...t,
+    // Special handling for [Music] tag, keep unchanged
+    text: t.text === '[Music]' ? t.text : t.casedText + t.punctuation,
+  }))
+}
+
+interface PunctuationOptions {
+  wasmUrl: string
+  sherpaModelPath: string
+  sherpaVocabPath: string
+}
+
+async function createModel(options?: PunctuationOptions) {
   const tokenizer = new BPETokenizer()
   await tokenizer.load(
     options?.sherpaVocabPath ??
@@ -30,10 +32,22 @@ export async function restorePunctuationInSubtitles(
       ('/sherpa-onnx-online-punct-en-2024-08-06/model.int8.onnx' satisfies PublicPath),
     options?.wasmUrl,
   )
-  const r = await model.annotatePunctuation(tokens)
-  return r.map((t) => ({
-    ...t,
-    // 特殊处理 [Music] 标签，保持不变
-    text: t.text === '[Music]' ? t.text : t.casedText + t.punctuation,
-  }))
+  return model
+}
+
+/**
+ * Streaming punctuation restoration using AsyncGenerator for window-by-window output
+ */
+export async function* restorePunctuation(
+  tokens: TimedToken[],
+  options?: PunctuationOptions,
+): AsyncGenerator<TimedToken[], TimedToken[]> {
+  const model = await createModel(options)
+
+  let result: TimedToken[] = []
+  for await (const processed of model.annotate(tokens)) {
+    result = mapAnnotatedToTimed(processed)
+    yield result
+  }
+  return result
 }

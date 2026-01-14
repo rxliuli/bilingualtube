@@ -1,6 +1,5 @@
 import { defineCustomEventMessaging } from '@webext-core/messaging/page'
-import { Settings } from './settings'
-import { TimedToken } from './subtitles/punctuationRestoration'
+import type { Settings } from './settings'
 
 export const eventMessager = defineCustomEventMessaging<{
   translate(texts: string[]): Promise<string[]>
@@ -10,7 +9,6 @@ export const eventMessager = defineCustomEventMessaging<{
     sherpaModelPath: string
     sherpaVocabPath: string
   }
-  restorePunctuationInSubtitles(tokens: TimedToken[]): Promise<TimedToken[]>
 }>({
   namespace: 'bilingual-tube-event-message',
 })

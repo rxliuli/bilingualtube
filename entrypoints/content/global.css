@@ -1,4 +1,4 @@
-#ytp-caption-window-container {
+#movie_player:not(:has([data-is-live='true'])) #ytp-caption-window-container {
   display: none !important;
 }
 

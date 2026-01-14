@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import {
   PunctuationRestorationModel,
   TimedToken,
-} from './punctuationRestoration'
+} from './PunctuationRestorationModel'
 import { BPETokenizer } from './bpeTokenizer'
 import { PublicPath } from 'wxt/browser'
 
@@ -45,8 +45,11 @@ it('should restore punctuation correctly', async () => {
         end: index * 0.5 + 0.5,
       } as TimedToken),
   )
-  const r = await model.annotatePunctuation(tokens)
-  expect(model.renderAnnotatedTokens(r))
+  let r
+  for await (const processed of model.annotate(tokens)) {
+    r = processed
+  }
+  expect(model.renderAnnotatedTokens(r!))
     .include('.')
     .include(',')
     .include('?')

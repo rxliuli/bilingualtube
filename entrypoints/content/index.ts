@@ -14,7 +14,7 @@ import {
   findMatchingSubtitle,
   getCuesToTranslate,
 } from '@/lib/subtitles/cues-utils'
-import { restorePunctuationInSubtitles } from '@/lib/subtitles/restorePunctuationInSubtitles'
+import { restorePunctuation } from '@/lib/subtitles/restorePunctuationInSubtitles'
 
 // Header to identify internal extension requests
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
@@ -34,6 +34,7 @@ export default defineContentScript({
         console.log('[BilingualTube] Movie player element observed')
         setupSubtitleUI()
         setupVideoProgressListener()
+        // setupPageDataUpdatedListener()
         console.log('[BilingualTube] Content Script Initialized.')
       },
       root: document.documentElement,
@@ -57,9 +58,8 @@ function setupSubtitleInterception() {
       }
       // Each time new subtitles are loaded, it means a new video is loaded, so we need to clear the previous subtitle data
       if (subtitleStore.subtitle) {
-        subtitleStore.clearSubtitle()
-        subtitleStore.setCurrentTime(subtitleStore.currentTime) // Trigger UI clearing
-        console.log('[BilingualTube] Subtitle request intercepted: ', c.req.url)
+        subtitleStore.reset()
+        console.log('[BilingualTube] Subtitle store reset for new video.')
       }
       await next()
       if (c.res.status !== 200) {
@@ -91,6 +91,12 @@ function setupSubtitleInterception() {
       }
       const kind = searchParams.get('kind')
       let data = convertYoutubeToStandardFormat(resp)
+      const t = new URL(location.href).searchParams.get('t')
+      let seconds = 0
+      if (t && t.match(/^\d+s$/)) {
+        seconds = Number.parseInt(t.slice(0, -1), 10)
+      }
+
       if (kind === 'asr') {
         if (lang === 'en' && hasMissingPunctuation(data)) {
           try {
@@ -98,30 +104,53 @@ function setupSubtitleInterception() {
             const options = await eventMessager.sendMessage(
               'getPunctuationOptions',
             )
-            data = await restorePunctuationInSubtitles(data, options)
-            console.log('[BilingualTube] Punctuation restoration completed.')
+            // Use streaming, update subtitles after each window is processed
+            const signal = subtitleStore.getSignal()
+            for await (const processed of restorePunctuation(data, options)) {
+              if (signal.aborted) {
+                console.log('[BilingualTube] Punctuation restoration aborted.')
+                throw new Error('Punctuation restoration aborted.')
+              }
+              const cues = sentencesInSubtitles(processed, lang)
+              subtitleStore.setSubtitle({
+                lang,
+                text: resp,
+                cues,
+              })
+              triggerTranslation(seconds)
+            }
+            console.log('[BilingualTube] Auto-generated subtitles processed.')
           } catch (error) {
             console.error(
               '[BilingualTube] Punctuation restoration failed:',
               error,
             )
+            // Use original data on failure
+            data = sentencesInSubtitles(data, lang)
+            subtitleStore.setSubtitle({
+              lang,
+              text: resp,
+              cues: data,
+            })
           }
+        } else {
+          data = sentencesInSubtitles(data, lang)
+          subtitleStore.setSubtitle({
+            lang,
+            text: resp,
+            cues: data,
+          })
         }
-        data = sentencesInSubtitles(data, lang)
+      } else {
+        subtitleStore.setSubtitle({
+          lang,
+          text: resp,
+          cues: data,
+        })
+        // Try to load official translation subtitles
+        await loadOfficialTranslationIfAvailable(c.req.url)
+        await triggerTranslation(seconds)
       }
-      subtitleStore.setSubtitle({
-        lang,
-        text: resp,
-        cues: data,
-      })
-      const t = new URL(location.href).searchParams.get('t')
-      let seconds = 0
-      if (t && t.match(/^\d+s$/)) {
-        seconds = Number.parseInt(t.slice(0, -1), 10)
-      }
-      // Try to load official translation subtitles
-      await loadOfficialTranslationIfAvailable(c.req.url)
-      await triggerTranslation(seconds)
       console.log('[BilingualTube] response: ', subtitleStore.subtitle)
     })
     .intercept()
@@ -137,7 +166,9 @@ function setupSubtitleUI() {
   document.head.appendChild(style)
   // Inject subtitle overlay UI component
   const subtitleOverlay = createSubtitleOverlay()
-  subtitleOverlay.update('BilingualTube Subtitle Loaded')
+  if (!isLive()) {
+    subtitleOverlay.update('BilingualTube Subtitle Loaded')
+  }
   let currentCue: TranslationToken | null = null
   let currentTranslationCue: TranslationToken | null = null
   const clean = subtitleStore.subscribe(async (currentTime) => {
@@ -409,11 +440,8 @@ async function loadOfficialTranslationIfAvailable(
     return
   }
 
-  // Merge translation subtitles and store them in the store
-  const translationCues = sentencesInSubtitles(
-    convertYoutubeToStandardFormat(translationData),
-    translationTrack.languageCode,
-  )
+  // Official multilingual subtitles don't need sentence splitting, only standard preprocessing
+  const translationCues = convertYoutubeToStandardFormat(translationData)
   subtitleStore.setOfficialTranslation(
     translationTrack.languageCode,
     translationData,
@@ -486,9 +514,9 @@ async function triggerTranslation(currentTime: number) {
 
   // If official translation subtitles are available, skip API translation
   if (subtitleStore.subtitle?.officialTranslation) {
-    console.log(
-      '[BilingualTube] Official translation available, skipping API translation',
-    )
+    // console.log(
+    //   '[BilingualTube] Official translation available, skipping API translation',
+    // )
     return
   }
 
@@ -512,7 +540,12 @@ async function triggerTranslation(currentTime: number) {
   try {
     console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
     const texts = cuesToTranslate.map((cue) => cue.text)
+    const signal = subtitleStore.getSignal()
     const translations = await eventMessager.sendMessage('translate', texts)
+    if (signal.aborted) {
+      console.log('[BilingualTube] Translation aborted.')
+      throw new Error('Translation aborted.')
+    }
 
     // Update translations of cues
     cuesToTranslate.forEach((cue, index) => {
@@ -545,4 +578,15 @@ function setupVideoProgressListener() {
     // Trigger translation
     triggerTranslation(currentTime)
   })
+}
+
+function setupPageDataUpdatedListener() {
+  const onPageDataUpdated = () => {
+    subtitleStore.reset()
+    console.log('[BilingualTube] Page data updated, subtitle store reset.')
+  }
+  document.addEventListener('yt-page-data-updated', onPageDataUpdated)
+  return () => {
+    document.removeEventListener('yt-page-data-updated', onPageDataUpdated)
+  }
 }

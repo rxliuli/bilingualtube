@@ -1,4 +1,4 @@
-import { TimedToken } from '@/lib/subtitles/punctuationRestoration'
+import { TimedToken } from './subtitles/PunctuationRestorationModel'
 import { GetTimedtextResp } from './subtitles/youtube-types'
 
 export interface TranslationToken extends TimedToken {
@@ -38,13 +38,9 @@ class SubtitleStore {
     }
   }
 
-  clearSubtitle() {
-    this.subtitle = null
-  }
-
   setCurrentTime(time: number) {
     this.currentTime = time
-    // 通知所有监听者
+    // Notify all listeners
     this.listeners.forEach((listener) => listener(time))
   }
 
@@ -53,6 +49,17 @@ class SubtitleStore {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  abortController: AbortController = new AbortController()
+  reset() {
+    this.abortController.abort()
+    this.subtitle = null
+    this.currentTime = 0
+    this.abortController = new AbortController()
+  }
+  getSignal() {
+    return this.abortController.signal
   }
 }
 

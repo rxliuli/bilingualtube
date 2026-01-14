@@ -1,4 +1,4 @@
-// 简化的 BPE tokenizer 实现
+// Simplified BPE tokenizer implementation
 export class BPETokenizer {
   private vocab: Map<string, number> = new Map()
   private reverseVocab: Map<number, string> = new Map()

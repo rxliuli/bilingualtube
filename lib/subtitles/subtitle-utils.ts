@@ -1,10 +1,8 @@
-import { TimedToken } from './punctuationRestoration'
+import { TimedToken } from './PunctuationRestorationModel'
 import { GetTimedtextResp } from './youtube-types'
 
 /**
- * 转换 YouTube 字幕格式为标准时间标记格式
- * @param youtubeSubtitles
- * @returns
+ * Convert YouTube subtitle format to standard timed token format
  */
 export function convertYoutubeToStandardFormat(
   youtubeSubtitles: GetTimedtextResp,
@@ -44,13 +42,11 @@ export function convertYoutubeToStandardFormat(
 }
 
 /**
- * 确定字幕中是否存在缺失标点符号的情况
- * @param tokens
- * @returns
+ * Determine if subtitles are missing punctuation
  */
 export function hasMissingPunctuation(tokens: TimedToken[]): boolean {
   for (const t of tokens) {
-    // 如果有标点符号，则认为不需要转换
+    // If punctuation exists, consider it doesn't need conversion
     if (/[,.?!]/.test(t.text.trim())) {
       return false
     }
@@ -79,7 +75,7 @@ function findBestSplitPoint(
     }
     return bestIndex
   }
-  // 优先在逗号处分割
+  // Prefer splitting at commas
   const commaIndices = tokens
     .map((t) => ({
       isComma: comma.test(t.text),
@@ -90,11 +86,11 @@ function findBestSplitPoint(
   if (commaIndices.length > 0) {
     return innerFindBestSplitPoint(commaIndices)
   }
-  // 否则找到最接近 maxLength 的点
+  // Otherwise find the point closest to maxLength
   return innerFindBestSplitPoint(tokens.map((t, i) => i))
 }
 
-// 将字幕进行分句，便于显示为字幕，使用启发式的算法处理标点符号
+// Split subtitles into sentences for display, using heuristic algorithm for punctuation handling
 export function sentencesInSubtitles(
   tokens: TimedToken[],
   lang: string,
@@ -124,7 +120,7 @@ function sentencesInSubtitlesOnCJK(
     const t = tokens[i]
     if (t.text === '[音楽]' || t.text === '[音乐]' || t.text === '[음악]') {
       if (current.length > 0) {
-        // 先把当前句子收集起来
+        // First collect the current sentence
         sentences.push(mergeTokens(current, SEPARATOR))
         current = []
       }
@@ -141,7 +137,7 @@ function sentencesInSubtitlesOnCJK(
     const wouldExceed =
       getCurrentLength(current) + t.text.length + 1 > MAX_LENGTH
     if (wouldExceed && current.length > 0) {
-      // 在当前 current 中找最佳分割点
+      // Find the best split point in current
       const splitIndex = findBestSplitPoint(current, MAX_LENGTH, commaRegex)
       if (splitIndex !== -1) {
         const toEmit = current.slice(0, splitIndex + 1)
@@ -149,7 +145,7 @@ function sentencesInSubtitlesOnCJK(
         sentences.push(mergeTokens(toEmit, SEPARATOR))
         current = remaining
       } else {
-        // 无法分割，直接提交
+        // Cannot split, submit directly
         sentences.push(mergeTokens(current, SEPARATOR))
         current = []
       }
@@ -171,17 +167,17 @@ function sentencesInSubtitlesOnDefault(
   let current: TimedToken[] = []
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
-    // 遇到 [Music] 标签则直接作为一个句子
+    // [Music] tag becomes its own sentence
     if (t.text === '[Music]') {
       if (current.length > 0) {
-        // 先把当前句子收集起来
+        // First collect the current sentence
         sentences.push(mergeTokens(current))
         current = []
       }
       sentences.push(t)
       continue
     }
-    // 遇到终止符号则分割
+    // Split on terminal punctuation
     if (/[.!?]$/.test(t.text)) {
       current.push(t)
       sentences.push(mergeTokens(current))
@@ -193,7 +189,7 @@ function sentencesInSubtitlesOnDefault(
     const wouldExceed =
       getCurrentLength(current) + t.text.length + 1 > MAX_LENGTH
     if (wouldExceed && current.length > 0) {
-      // 在当前 current 中找最佳分割点
+      // Find the best split point in current
       const splitIndex = findBestSplitPoint(current, MAX_LENGTH, /[,;]$/)
       if (splitIndex !== -1) {
         const toEmit = current.slice(0, splitIndex + 1)
@@ -201,7 +197,7 @@ function sentencesInSubtitlesOnDefault(
         sentences.push(mergeTokens(toEmit))
         current = remaining
       } else {
-        // 无法分割，直接提交
+        // Cannot split, submit directly
         sentences.push(mergeTokens(current))
         current = []
       }

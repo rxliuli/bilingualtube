@@ -88,7 +88,16 @@ Translation C
 
 Translation D
 
+## CRITICAL REQUIREMENT
+- Input contains EXACTLY 18 segments separated by %%
+- Output MUST contain EXACTLY 18 segments separated by %%
+- Count verification: Before outputting, verify that you have 18 segments
 
+## Step-by-step process:
+1. Count the input segments (should be 18)
+2. Translate each segment one by one
+3. Verify output has 18 segments before returning
+4. If count doesn't match, review and fix
 
 Translate to {{Target Language}}:
 

@@ -1,6 +1,6 @@
 import { OptionalKeysOf } from 'type-fest'
 import { DefaultLLMPrompt } from './translate/openai'
-import { ToLang } from './translate/lang'
+import { type ToLang } from './translate/lang'
 
 export interface Settings {
   to?: ToLang

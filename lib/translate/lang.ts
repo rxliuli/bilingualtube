@@ -1,10 +1,10 @@
 /**
- * 语言代码标准：BCP 47 (IETF)
- * 参考: https://www.rfc-editor.org/rfc/bcp/bcp47.txt
+ * Language code standard: BCP 47 (IETF)
+ * Reference: https://www.rfc-editor.org/rfc/bcp/bcp47.txt
  *
- * 中文特别说明:
- * - zh-Hans: 简体中文 (Hans = Han Simplified)
- * - zh-Hant: 繁体中文 (Hant = Han Traditional)
+ * Chinese variants:
+ * - zh-Hans: Simplified Chinese (Hans = Han Simplified)
+ * - zh-Hant: Traditional Chinese (Hant = Han Traditional)
  */
 export const langs = {
   af: 'Afrikaans',
@@ -116,13 +116,13 @@ export const langs = {
 export type ToLang = keyof typeof langs
 
 /**
- * 规范化语言代码为 BCP 47 标准格式
- * 处理各种历史遗留格式和变体
+ * Normalize language code to BCP 47 standard format
+ * Handles various legacy formats and variants
  */
 export function normalizeLanguageCode(lang: string): string {
   const normalized = lang.toLowerCase().trim()
 
-  // 处理简体中文的各种变体
+  // Handle Simplified Chinese variants
   if (
     normalized === 'zh-cn' ||
     normalized === 'zh-hans' ||
@@ -132,7 +132,7 @@ export function normalizeLanguageCode(lang: string): string {
     return 'zh-Hans'
   }
 
-  // 处理繁体中文的各种变体
+  // Handle Traditional Chinese variants
   if (
     normalized === 'zh-tw' ||
     normalized === 'zh-hant' ||
@@ -143,11 +143,11 @@ export function normalizeLanguageCode(lang: string): string {
     return 'zh-Hant'
   }
 
-  // 处理希伯来语的历史代码 (iw -> he)
+  // Handle Hebrew legacy code (iw -> he)
   if (normalized === 'iw') {
     return 'he'
   }
 
-  // 其他语言取主语言代码（如 en-US → en）
+  // For other languages, extract the primary language code (e.g., en-US → en)
   return normalized.split('-')[0]
 }

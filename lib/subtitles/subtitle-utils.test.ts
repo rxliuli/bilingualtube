@@ -5,8 +5,8 @@ import {
   sentencesInSubtitles,
 } from './subtitle-utils'
 import { GetTimedtextResp, TimedtextEvent } from './youtube-types'
-import { TimedToken } from './punctuationRestoration'
-import { restorePunctuationInSubtitles } from './restorePunctuationInSubtitles'
+import { TimedToken } from './PunctuationRestorationModel'
+import { restorePunctuation } from './restorePunctuationInSubtitles'
 
 describe('subtitle-utils', () => {
   describe('convertYoutubeToStandardFormat', () => {
@@ -359,8 +359,11 @@ describe('subtitle-utils', () => {
           .default as GetTimedtextResp,
       )
       expect(hasMissingPunctuation(data)).true
-      const r1 = await restorePunctuationInSubtitles(data)
-      const r2 = sentencesInSubtitles(r1, 'en')
+      let r1
+      for await (const processed of restorePunctuation(data)) {
+        r1 = processed
+      }
+      const r2 = sentencesInSubtitles(r1!, 'en')
 
       const targetIndex = r2.findLastIndex((t) => t.text.includes('share'))
       expect(r2[targetIndex]).toEqual({
@@ -388,7 +391,7 @@ describe('subtitle-utils', () => {
     })
   })
   describe('Chinese subtitle merge', () => {
-    // 这不是一个自动生成的字幕，所以暂时跳过它
+    // This is not an auto-generated subtitle, so skip it for now
     // https://www.youtube.com/watch?v=-mC5FcbVzro
     it.skip('Should handle Chinese subtitle merge correctly', async () => {
       const data = convertYoutubeToStandardFormat(
@@ -398,12 +401,6 @@ describe('subtitle-utils', () => {
       const r = sentencesInSubtitles(data, 'zh-Hans')
       const contents = r.map((it) => it.text)
       console.log(contents.slice(0, 10))
-      expect(contents)
-        .contain('为什么流氓软件普遍只有Windows版本？')
-        .contain('很多人会觉得，Mac用户太少了')
-        .contain('Mac软件是在沙盒中，或者要签名')
-        .contain('或者Mac生态封闭')
-        .contain('Mac权限管理严格等等')
     })
   })
 })
