@@ -63,4 +63,4 @@ class SubtitleStore {
   }
 }
 
-export const subtitleStore = new SubtitleStore()
+export const store = new SubtitleStore()
