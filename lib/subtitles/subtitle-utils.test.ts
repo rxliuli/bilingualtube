@@ -253,7 +253,7 @@ describe('subtitle-utils', () => {
       expect(merged[1].text).toBe('>> A [laughter] h that sounds familiar.')
     })
   })
-  describe('real world subtitle merge', () => {
+  describe('English subtitle merge', () => {
     // Correctly handle Discover the Apple Design Resources subtitle merge
     // https://www.youtube.com/watch?v=CVMO61kLAM8
     it('Discover the Apple Design Resources', async () => {
@@ -371,6 +371,38 @@ describe('subtitle-utils', () => {
         end: 158.239, // End time trimmed to avoid overlap with next subtitle
         text: "Let me know Hing on my fair share of missions, YOU'VE been on one Spike and that's my fair share,",
       } satisfies TimedToken)
+    })
+    // Should handle [laughter] and [applause] tags correctly
+    it('Should handle [laughter] and [applause] tags correctly', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-mlp-s4-e14.json'))
+          .default as GetTimedtextResp,
+      )
+      let r1
+      for await (const processed of restorePunctuation(data)) {
+        r1 = processed
+      }
+      const r2 = sentencesInSubtitles(r1!, 'en')
+      const contents = r2.map((it) => it.text)
+      expect(contents)
+        .contain('Got the music in,')
+        .contains('[Applause]')
+        .contain('you, you did it FLUTTER shot.')
+    })
+    // 正确处理连续多个以 >> 开头的字幕
+    it('Should handle multiple consecutive >> started subtitles correctly', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext.json')).default as GetTimedtextResp,
+      )
+      const r1 = data.filter(
+        (t, i) => t.text.startsWith('>>') && data[i + 1]?.text.startsWith('>>'),
+      )
+      expect(r1.length).gt(0)
+      const r = sentencesInSubtitles(data, 'en')
+      const r2 = r.filter(
+        (t) => t.text.indexOf('>>') !== t.text.lastIndexOf('>>'),
+      )
+      expect(r2.length).eq(0)
     })
   })
   describe('Japanese subtitle merge', () => {

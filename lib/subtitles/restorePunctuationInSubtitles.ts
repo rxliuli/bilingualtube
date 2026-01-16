@@ -9,8 +9,10 @@ import {
 function mapAnnotatedToTimed(tokens: AnnotatedToken[]): TimedToken[] {
   return tokens.map((t) => ({
     ...t,
-    // Special handling for [Music] tag, keep unchanged
-    text: t.text === '[Music]' ? t.text : t.casedText + t.punctuation,
+    // Special handling for [Music] and [Applause] tags, keep unchanged
+    text: ['[Music]', '[Applause]'].includes(t.text)
+      ? t.text
+      : t.casedText + t.punctuation,
   }))
 }
 

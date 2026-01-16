@@ -91,120 +91,116 @@ function findBestSplitPoint(
 }
 
 // Split subtitles into sentences for display, using heuristic algorithm for punctuation handling
-export function sentencesInSubtitles(
-  tokens: TimedToken[],
-  lang: string,
-): TimedToken[] {
+
+interface SentenceSplitRule {
+  maxLength: number
+  separator: string
+  sentenceStartRegex: RegExp
+  sentenceEndRegex: RegExp
+  commaRegex: RegExp
+  specialTags: string[]
+}
+
+function getDefaultSentenceSplitRule(): SentenceSplitRule {
+  return {
+    maxLength: 100,
+    separator: ' ',
+    sentenceStartRegex: /^(>>)/,
+    sentenceEndRegex: /[.!?]$/,
+    commaRegex: /[,;]$/,
+    specialTags: ['[Music]', '[Applause]'],
+  }
+}
+
+function getCJKSentenceSplitRule(lang: string): SentenceSplitRule {
+  const specialTagsMap: Record<string, string[]> = {
+    'zh-Hans': ['[音乐]'],
+    'zh-Hant': ['[音樂]'],
+    ja: ['[音楽]'],
+    ko: ['[음악]'],
+  }
+  return {
+    maxLength: 100,
+    separator: '',
+    sentenceStartRegex: /^(>>)/,
+    sentenceEndRegex: /[。！？.!?]$/,
+    commaRegex: /[、，,;]$/,
+    specialTags: specialTagsMap[lang] || [],
+  }
+}
+
+function getSentenceSplitRule(lang: string): SentenceSplitRule {
   if (
     lang === 'zh-Hans' ||
     lang === 'zh-Hant' ||
     lang === 'ja' ||
     lang === 'ko'
   ) {
-    return sentencesInSubtitlesOnCJK(tokens, lang)
+    return getCJKSentenceSplitRule(lang)
   }
-  return sentencesInSubtitlesOnDefault(tokens, lang)
+  return getDefaultSentenceSplitRule()
 }
 
-function sentencesInSubtitlesOnCJK(
+export function sentencesInSubtitles(
   tokens: TimedToken[],
   lang: string,
 ): TimedToken[] {
-  const MAX_LENGTH = 100
-  const SEPARATOR = ''
-  const sentenceEndRegex = /[。！？.!?]$/
-  const commaRegex = /[、，,;]$/
+  const rule = getSentenceSplitRule(lang)
   const sentences: TimedToken[] = []
   let current: TimedToken[] = []
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
-    if (t.text === '[音楽]' || t.text === '[音乐]' || t.text === '[음악]') {
+    // [Music] and [Applause] tags become their own sentences
+    if (rule.specialTags.includes(t.text)) {
       if (current.length > 0) {
         // First collect the current sentence
-        sentences.push(mergeTokens(current, SEPARATOR))
+        sentences.push(mergeTokens(current, rule.separator))
         current = []
       }
       sentences.push(t)
       continue
     }
-    if (sentenceEndRegex.test(t.text)) {
+    if (rule.sentenceStartRegex.test(t.text)) {
+      if (current.length > 0) {
+        // First collect the current sentence
+        sentences.push(mergeTokens(current, rule.separator))
+        current = []
+      }
       current.push(t)
-      sentences.push(mergeTokens(current, SEPARATOR))
-      current = []
-      continue
-    }
-
-    const wouldExceed =
-      getCurrentLength(current) + t.text.length + 1 > MAX_LENGTH
-    if (wouldExceed && current.length > 0) {
-      // Find the best split point in current
-      const splitIndex = findBestSplitPoint(current, MAX_LENGTH, commaRegex)
-      if (splitIndex !== -1) {
-        const toEmit = current.slice(0, splitIndex + 1)
-        const remaining = current.slice(splitIndex + 1)
-        sentences.push(mergeTokens(toEmit, SEPARATOR))
-        current = remaining
-      } else {
-        // Cannot split, submit directly
-        sentences.push(mergeTokens(current, SEPARATOR))
-        current = []
-      }
-    }
-    current.push(t)
-  }
-  if (current.length > 0) {
-    sentences.push(mergeTokens(current, SEPARATOR))
-  }
-  return sentences
-}
-
-function sentencesInSubtitlesOnDefault(
-  tokens: TimedToken[],
-  lang: string,
-): TimedToken[] {
-  const MAX_LENGTH = 100
-  const sentences: TimedToken[] = []
-  let current: TimedToken[] = []
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i]
-    // [Music] tag becomes its own sentence
-    if (t.text === '[Music]') {
-      if (current.length > 0) {
-        // First collect the current sentence
-        sentences.push(mergeTokens(current))
-        current = []
-      }
-      sentences.push(t)
       continue
     }
     // Split on terminal punctuation
-    if (/[.!?]$/.test(t.text)) {
+    if (rule.sentenceEndRegex.test(t.text)) {
       current.push(t)
-      sentences.push(mergeTokens(current))
+      sentences.push(mergeTokens(current, rule.separator))
       current = []
       continue
     }
     current.push(t)
 
     const wouldExceed =
-      getCurrentLength(current) + t.text.length + 1 > MAX_LENGTH
+      getCurrentLength(current) + t.text.length + 1 > rule.maxLength
     if (wouldExceed && current.length > 0) {
       // Find the best split point in current
-      const splitIndex = findBestSplitPoint(current, MAX_LENGTH, /[,;]$/)
+      const splitIndex = findBestSplitPoint(
+        current,
+        rule.maxLength,
+        rule.commaRegex,
+      )
       if (splitIndex !== -1) {
         const toEmit = current.slice(0, splitIndex + 1)
         const remaining = current.slice(splitIndex + 1)
-        sentences.push(mergeTokens(toEmit))
+        sentences.push(mergeTokens(toEmit, rule.separator))
         current = remaining
       } else {
         // Cannot split, submit directly
-        sentences.push(mergeTokens(current))
+        sentences.push(mergeTokens(current, rule.separator))
         current = []
       }
     }
   }
   if (current.length > 0) {
-    sentences.push(mergeTokens(current))
+    sentences.push(mergeTokens(current, rule.separator))
   }
   return sentences
 }
