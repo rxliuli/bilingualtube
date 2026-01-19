@@ -40,64 +40,30 @@ You are a professional native translator specializing in {{Target Language}}. Yo
 
 ## Translation Rules
 
-1. Output ONLY the translated text. Do not include any explanations or additional content (such as "Here is the translation:", "Translation:", etc.)
+1. Output ONLY the translated text with line numbers. Do not include any explanations or additional content.
 
-2. The translated output must maintain the exact same number of paragraphs and formatting as the original text
+2. Each line starts with [N] where N is the line number, followed by the translation.
 
-3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency
+3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency.
 
-4. For content that should not be translated (such as proper nouns, code, etc.), keep the original text
+4. For content that should not be translated (such as proper nouns, code, etc.), keep the original text.
 
-## Context Awareness
+## Input/Output Format
 
-Document Metadata:
+Input:
+[1] Hello world
+[2] How are you?
+[3] Goodbye
 
-Title: {{Document Title}}
-
-## Input/Output Format Example
-
-### Input Example:
-
-Paragraph A
-
-%%
-
-Paragraph B
-
-%%
-
-Paragraph C
-
-%%
-
-Paragraph D
-
-### Output Example:
-
-Translation A
-
-%%
-
-Translation B
-
-%%
-
-Translation C
-
-%%
-
-Translation D
+Output:
+[1] 你好世界
+[2] 你好吗？
+[3] 再见
 
 ## CRITICAL REQUIREMENT
-- Input contains EXACTLY 18 segments separated by %%
-- Output MUST contain EXACTLY 18 segments separated by %%
-- Count verification: Before outputting, verify that you have 18 segments
-
-## Step-by-step process:
-1. Count the input segments (should be 18)
-2. Translate each segment one by one
-3. Verify output has 18 segments before returning
-4. If count doesn't match, review and fix
+- Input has {{Segment Count}} numbered lines from [1] to [{{Segment Count}}]
+- Output MUST have exactly {{Segment Count}} lines, each starting with [1], [2], ... [{{Segment Count}}]
+- Every input line number MUST have a corresponding output line with the same number
 
 Translate to {{Target Language}}:
 
@@ -121,28 +87,68 @@ export function openai(options: OpenAIConfig): Translator {
       if (!options.apiKey) {
         throw new Error('OpenAI API key is not set')
       }
-      const Splitor = '\n\n%%\n\n'
+      // Format input with line numbers: [1] text1\n[2] text2\n...
+      const numberedInput = text
+        .map((t, i) => `[${i + 1}] ${t}`)
+        .join('\n')
       const prompt = (options.prompt ?? DefaultLLMPrompt)
         .replaceAll('{{Target Language}}', langs[to] ?? to)
-        .replaceAll('{{Text to Translate}}', text.join(Splitor))
-      let r: string
-      if (
-        options.baseUrl === 'https://api.openai.com/v1' &&
-        newModels.includes(options.model ?? 'gpt-4o-mini')
-      ) {
-        r = await sendOfResponse(prompt, options)
-      } else {
-        r = await sendOfCompletion(prompt, options)
+        .replaceAll('{{Segment Count}}', String(text.length))
+        .replaceAll('{{Text to Translate}}', numberedInput)
+
+      const maxRetries = 3
+      let lastError: Error | null = null
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        let r: string
+        if (
+          options.baseUrl === 'https://api.openai.com/v1' &&
+          newModels.includes(options.model ?? 'gpt-4.1-mini')
+        ) {
+          r = await sendOfResponse(prompt, options)
+        } else {
+          r = await sendOfCompletion(prompt, options)
+        }
+        // Parse numbered output: [1] translation1\n[2] translation2\n...
+        try {
+          const results = parseNumberedOutput(r, text.length)
+          return results
+        } catch (e) {
+          lastError = e as Error
+        }
       }
-      const results = r.split(Splitor).filter((it) => it.trim() !== '')
-      if (results.length !== text.length) {
-        throw new Error(
-          'Translation result count does not match input text count',
-        )
-      }
-      return results
+
+      throw lastError
     },
   }
+}
+
+function parseNumberedOutput(output: string, expectedCount: number): string[] {
+  const results: string[] = new Array(expectedCount).fill('')
+  const lines = output.split('\n')
+
+  for (const line of lines) {
+    const match = line.match(/^\[(\d+)\]\s*(.*)$/)
+    if (match) {
+      const index = parseInt(match[1], 10) - 1
+      if (index >= 0 && index < expectedCount) {
+        results[index] = match[2].trim()
+      }
+    }
+  }
+
+  // Check if all slots are filled
+  const missingIndices = results
+    .map((r, i) => (r === '' ? i + 1 : null))
+    .filter((i) => i !== null)
+
+  if (missingIndices.length > 0) {
+    throw new Error(
+      `Translation result count does not match input text count. Missing: [${missingIndices.join(', ')}]`,
+    )
+  }
+
+  return results
 }
 
 async function sendOfResponse(text: string, options: OpenAIConfig) {

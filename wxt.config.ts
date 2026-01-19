@@ -16,10 +16,10 @@ export default defineConfig({
         '@': __dirname,
       },
     },
-    build: {
-      minify: false,
-      sourcemap: true,
-    },
+    // build: {
+    //   minify: false,
+    //   sourcemap: true,
+    // },
   }),
   manifestVersion: 3,
   manifest: (env) => {
