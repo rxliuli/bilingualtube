@@ -30,6 +30,13 @@ describe('subtitle-utils', () => {
       expect(hasMissingPunctuation(data1)).false
       expect(hasMissingPunctuation(data2)).true
     })
+    it('should handle subtitles with numbers and temperatures correctly', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-mlp-s9-e16.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).true
+    })
   })
   describe('restorePunctuationInSubtitles', () => {
     it.todo('should restore punctuation in subtitles using LLM', () => {})
@@ -258,9 +265,7 @@ describe('subtitle-utils', () => {
     // https://www.youtube.com/watch?v=CVMO61kLAM8
     it('Discover the Apple Design Resources', async () => {
       const data = (
-        await import(
-          './assets/timedtext-discover-the-apple-design-resources.json'
-        )
+        await import('./assets/timedtext-discover-the-apple-design-resources.json')
       ).default
       const r = sentencesInSubtitles(convertYoutubeToStandardFormat(data), 'en')
       expect(r[0]).toEqual({
@@ -272,9 +277,7 @@ describe('subtitle-utils', () => {
     // Correctly handle sentence splitting, should break on commas or periods (and if too long?)
     it('Should split sentences on punctuation', async () => {
       const data = (
-        await import(
-          './assets/timedtext-discover-the-apple-design-resources.json'
-        )
+        await import('./assets/timedtext-discover-the-apple-design-resources.json')
       ).default
       const r = sentencesInSubtitles(convertYoutubeToStandardFormat(data), 'en')
       const cue = r.find((it) =>
@@ -290,9 +293,7 @@ describe('subtitle-utils', () => {
     // Should break sentences when encountering overly long subtitle segments
     it('Should split long subtitle segments', async () => {
       const data = (
-        await import(
-          './assets/timedtext-discover-the-apple-design-resources.json'
-        )
+        await import('./assets/timedtext-discover-the-apple-design-resources.json')
       ).default
       const r = sentencesInSubtitles(convertYoutubeToStandardFormat(data), 'en')
       const contents = r.map((it) => it.text)
@@ -389,7 +390,7 @@ describe('subtitle-utils', () => {
         .contains('[Applause]')
         .contain('you, you did it FLUTTER shot.')
     })
-    // 正确处理连续多个以 >> 开头的字幕
+    // Should handle multiple consecutive >> started subtitles correctly
     it('Should handle multiple consecutive >> started subtitles correctly', async () => {
       const data = convertYoutubeToStandardFormat(
         (await import('./assets/timedtext.json')).default as GetTimedtextResp,

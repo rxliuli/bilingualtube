@@ -47,7 +47,11 @@ export function convertYoutubeToStandardFormat(
 export function hasMissingPunctuation(tokens: TimedToken[]): boolean {
   for (const t of tokens) {
     // If punctuation exists, consider it doesn't need conversion
-    if (/[,.?!]/.test(t.text.trim())) {
+    // not " 13.2" or "37.2c"
+    if (
+      /[,.?!]/.test(t.text.trim()) &&
+      !/^\d+[\.,]\d+c?$/.test(t.text.trim())
+    ) {
       return false
     }
   }

@@ -17,37 +17,37 @@ export class BPETokenizer {
   }
 
   encode(text: string): { tokenIds: number[], wordBoundaries: number[] } {
-    // 返回 token IDs 和词边界位置
+    // Return token IDs and word boundary positions
     const tokenIds: number[] = []
-    const wordBoundaries: number[] = [] // 记录哪些位置是词的开始
-    
-    tokenIds.push(this.vocab.get('<s>')!) // 开始标记
-    wordBoundaries.push(0) // <s> 是有效位置
-    
+    const wordBoundaries: number[] = [] // Track which positions are word starts
+
+    tokenIds.push(this.vocab.get('<s>')!) // Start token
+    wordBoundaries.push(0) // <s> is a valid position
+
     const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0)
-    
+
     for (const word of words) {
       const wordStart = tokenIds.length
       const wordWithPrefix = '▁' + word
-      
-      // 尝试直接查找完整单词
+
+      // Try to find the complete word directly
       if (this.vocab.has(wordWithPrefix)) {
         tokenIds.push(this.vocab.get(wordWithPrefix)!)
-        wordBoundaries.push(wordStart) // 标记词的开始位置
+        wordBoundaries.push(wordStart) // Mark word start position
       } else {
-        // 否则按字符编码
+        // Otherwise encode character by character
         let isFirstChar = true
         for (const char of word) {
           const charWithPrefix = isFirstChar ? '▁' + char : char
           let id = this.vocab.get(charWithPrefix)
-          
+
           if (id === undefined) {
             id = this.vocab.get(char) || this.vocab.get('<unk>')!
           }
-          
+
           tokenIds.push(id)
-          
-          // 只标记第一个字符的位置为词边界
+
+          // Only mark first character position as word boundary
           if (isFirstChar) {
             wordBoundaries.push(tokenIds.length - 1)
             isFirstChar = false
@@ -55,10 +55,10 @@ export class BPETokenizer {
         }
       }
     }
-    
-    tokenIds.push(this.vocab.get('</s>')!) // 结束标记
-    wordBoundaries.push(tokenIds.length - 1) // </s> 是有效位置
-    
+
+    tokenIds.push(this.vocab.get('</s>')!) // End token
+    wordBoundaries.push(tokenIds.length - 1) // </s> is a valid position
+
     return { tokenIds, wordBoundaries }
   }
 

@@ -35,8 +35,8 @@ const CASE_MAP: Record<number, (word: string) => string> = {
 export class PunctuationRestorationModel {
   private session: ort.InferenceSession | null = null
   private maxSeqLength = 200
-  private maxTokensPerWindow = 180 // 为 <s> </s> 等留出空间
-  private overlap = 30 // token 级别的重叠
+  private maxTokensPerWindow = 180 // Leave room for <s> </s> tokens
+  private overlap = 30 // Token-level overlap
 
   private tokenizer: BPETokenizer
   constructor(tokenizer: BPETokenizer) {
