@@ -80,4 +80,7 @@ async function translate(texts: string[]): Promise<string[]> {
 export default defineBackground(() => {
   messager.onMessage('translate', (ev) => translate(ev.data))
   messager.onMessage('getSettings', getMergedSettings)
+  browser.action.onClicked.addListener(async () => {
+    await browser.runtime.openOptionsPage()
+  })
 })

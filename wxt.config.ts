@@ -32,15 +32,7 @@ export default defineConfig({
       author: {
         email: 'rxliuli@gmail.com',
       },
-      action: {
-        default_icon: {
-          '16': 'icon/16.png',
-          '32': 'icon/32.png',
-          '48': 'icon/48.png',
-          '96': 'icon/96.png',
-          '128': 'icon/128.png',
-        },
-      },
+      action: {},
       homepage_url: 'https://rxliuli.com/project/bilingualtube/',
       web_accessible_resources: [
         {
