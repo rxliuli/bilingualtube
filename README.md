@@ -11,7 +11,13 @@ A browser extension that adds bilingual subtitles to YouTube videos. Displays or
 
 ## Installation
 
-Install from your browser's extension store (coming soon), or build from source:
+Install from your browser's extension store:
+
+- [Chrome / Edge](https://chromewebstore.google.com/detail/bilingualtube/ombapcolopdeailifakdgaijhoncgpgn)
+- [Firefox](https://addons.mozilla.org/firefox/addon/bilingualtube/)
+- [Safari](https://apps.apple.com/app/id6757694666)
+
+Or build from source:
 
 ```sh
 git clone https://github.com/rxliuli/bilingual-tube.git
@@ -55,14 +61,6 @@ Requires macOS and Xcode:
 1. Update `developmentTeam` in [wxt.config.ts](wxt.config.ts) with your Apple Developer Team ID
 2. Run `pnpm build:safari`
 3. Build and test in Xcode
-
-## Technical Stack
-
-- [WXT](https://wxt.dev/): Browser extension framework
-- [React](https://react.dev/): UI library
-- [Shadcn/ui](https://ui.shadcn.com/): Component library
-- [TanStack Query](https://tanstack.com/query): Data synchronization
-- [Tailwind CSS](https://tailwindcss.com/): Styling
 
 ## License
 
