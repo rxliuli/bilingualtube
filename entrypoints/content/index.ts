@@ -153,6 +153,9 @@ function setupSubtitleInterception() {
             })
           }
         } else {
+          console.log(
+            '[BilingualTube] Better auto-generated subtitles detected.',
+          )
           data = sentencesInSubtitles(data, lang)
           store.setSubtitle({
             lang,

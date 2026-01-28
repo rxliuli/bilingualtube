@@ -37,6 +37,13 @@ describe('subtitle-utils', () => {
       )
       expect(hasMissingPunctuation(data)).true
     })
+    it('should handle subtitles with decimal numbers correctly', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-22V3rKriX60.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).true
+    })
   })
   describe('restorePunctuationInSubtitles', () => {
     it.todo('should restore punctuation in subtitles using LLM', () => {})
