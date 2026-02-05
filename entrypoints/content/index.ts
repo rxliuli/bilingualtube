@@ -114,21 +114,24 @@ function setupSubtitleInterception() {
                 throw new Error('Punctuation restoration aborted.')
               }
               const cues = sentencesInSubtitles(processed, lang)
+
+              // Preserve existing translations for cues that haven't changed
+              const existingCues = store.subtitle?.cues || []
+              const mergedCues = cues.map((cue, i) => {
+                const existing = existingCues[i]
+                // If the cue text matches and has a translation, preserve it
+                if (existing && existing.text === cue.text && existing.translated) {
+                  return { ...cue, translated: existing.translated }
+                }
+                return cue
+              })
+
               store.setSubtitle({
                 lang,
                 text: resp,
-                cues: [
-                  ...(store.subtitle?.cues.slice(0, lastCuesLength) || []),
-                  // Update only newly processed cues
-                  ...cues.slice(lastCuesLength),
-                ],
+                cues: mergedCues,
               })
-              // console.log(
-              //   '[BilingualTube] Auto-generated subtitles updated chunk.',
-              //   store.currentTime,
-              //   cues[lastCuesLength].start,
-              //   cues[cues.length - 1].end,
-              // )
+
               if (
                 cues.length > lastCuesLength &&
                 store.currentTime >= cues[lastCuesLength].start &&

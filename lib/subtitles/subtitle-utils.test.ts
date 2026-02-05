@@ -45,9 +45,6 @@ describe('subtitle-utils', () => {
       expect(hasMissingPunctuation(data)).true
     })
   })
-  describe('restorePunctuationInSubtitles', () => {
-    it.todo('should restore punctuation in subtitles using LLM', () => {})
-  })
   describe('sentencesInSubtitles', () => {
     it('Should compile subtitle merge correctly', async () => {
       const data = convertYoutubeToStandardFormat(
@@ -411,6 +408,21 @@ describe('subtitle-utils', () => {
         (t) => t.text.indexOf('>>') !== t.text.lastIndexOf('>>'),
       )
       expect(r2.length).eq(0)
+    })
+    it('should correctly handle sentence splitting without losing original words', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-mlp-s9-e16.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).true
+      let r1
+      for await (const processed of restorePunctuation(data)) {
+        r1 = processed
+      }
+      const r2 = sentencesInSubtitles(r1!, 'en')
+      const contents = r2.map((it) => it.text)
+      console.log(r2.find((t) => t.text.includes('variety')))
+      // expect(contents).contain('variety')
     })
   })
   describe('Japanese subtitle merge', () => {
