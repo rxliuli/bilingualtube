@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { getMergedSettings, getSyncSettings, setSyncSettings, Settings } from '@/lib/settings'
 import { toast } from 'sonner'
+import { FaDiscord } from 'react-icons/fa'
 import { langs, ToLang } from '../../../lib/translate/lang'
 
 export function OptionsForm() {
@@ -73,7 +74,18 @@ export function OptionsForm() {
   return (
     <div className="container max-w-4xl mx-auto px-2 py-4 md:px-0 md:py-8 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">BilingualTube Settings</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">BilingualTube Settings</h1>
+          <a
+            href="https://discord.gg/C2baQRZUCW"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Join our Discord"
+            className="text-[#5865F2] hover:text-[#4752C4] transition-colors"
+          >
+            <FaDiscord size={24} />
+          </a>
+        </div>
         <p className="text-muted-foreground">
           Configure your translation preferences and API settings
         </p>
