@@ -172,8 +172,6 @@ function setupSubtitleInterception() {
           text: resp,
           cues: data,
         })
-        // Try to load official translation subtitles
-        await loadOfficialTranslationIfAvailable(c.req.url)
         await triggerTranslation(seconds)
       }
       console.log('[BilingualTube] response: ', store.subtitle)
@@ -195,32 +193,14 @@ function setupSubtitleUI() {
     subtitleOverlay.update('BilingualTube Subtitle Loaded')
   }
   let currentCue: TranslationToken | null = null
-  let currentTranslationCue: TranslationToken | null = null
   const clean = store.subscribe(async (currentTime) => {
     const cue = findMatchingSubtitle(store.subtitle?.cues || [], currentTime)
-
-    // Find official translation subtitles (if available)
-    let translationText: string | undefined
-    if (store.subtitle?.officialTranslation) {
-      const translationCue = findMatchingSubtitle(
-        store.subtitle.officialTranslation.cues,
-        currentTime,
-      )
-      translationText = translationCue?.text
-      currentTranslationCue = translationCue
-    } else {
-      // Use API translation
-      translationText = cue?.translated
-      currentTranslationCue = null
-    }
-
-    // console.log('Current Time:', currentTime, 'Matched Cue:', cue, 'Translation:', translationText)
+    const translationText = cue?.translated
 
     // Check if there are changes
     if (
       cue?.text === currentCue?.text &&
-      translationText ===
-        (currentTranslationCue?.text || currentCue?.translated)
+      translationText === currentCue?.translated
     ) {
       return
     }
@@ -238,7 +218,7 @@ function setupSubtitleUI() {
     } else {
       subtitleOverlay.update('')
     }
-    currentCue = JSON.parse(JSON.stringify(cue))
+    currentCue = cue ? JSON.parse(JSON.stringify(cue)) : null
   })
   return () => {
     document.head.removeChild(style)
@@ -294,175 +274,8 @@ function createSubtitleOverlay() {
   }
 }
 
-// YouTube caption track related
-interface CaptionTrack {
-  baseUrl: string
-  name: {
-    simpleText: string
-  }
-  vssId: string
-  languageCode: string
-  kind?: string
-  isTranslatable: boolean
-  trackName: string
-}
-
-/**
- * Get all available caption tracks for a YouTube video
- */
-function getAvailableCaptionTracks(): CaptionTrack[] {
-  try {
-    // Try to get from ytInitialPlayerResponse
-    const ytInitialPlayerResponse = (globalThis as any).ytInitialPlayerResponse
-    const captionTracks =
-      ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer
-        ?.captionTracks || []
-    return captionTracks as CaptionTrack[]
-  } catch (error) {
-    console.error('[BilingualTube] Failed to get caption tracks:', error)
-    return []
-  }
-}
-
 function isLive() {
   return document.querySelector('#movie_player .ytp-live') !== null
-}
-
-/**
- * Find the official subtitle track for the target language
- * Prioritize non-auto-generated subtitles (kind !== 'asr')
- */
-function findOfficialTranslationTrack(
-  tracks: CaptionTrack[],
-  targetLang: string,
-  sourceLang: string,
-): CaptionTrack | null {
-  // Filter out source language subtitles
-  const translationTracks = tracks.filter(
-    (track) =>
-      normalizeLanguageCode(track.languageCode) ===
-        normalizeLanguageCode(targetLang) &&
-      normalizeLanguageCode(track.languageCode) !==
-        normalizeLanguageCode(sourceLang),
-  )
-
-  if (translationTracks.length === 0) {
-    return null
-  }
-
-  // Prioritize non-auto-generated subtitles
-  const manualTrack = translationTracks.find((track) => track.kind !== 'asr')
-  return manualTrack || translationTracks[0]
-}
-
-/**
- * Request translated subtitles by modifying the lang parameter of the original request URL
- */
-async function fetchSubtitleByReplay(
-  targetLang: string,
-  lastSubtitleRequestUrl: string,
-): Promise<GetTimedtextResp | null> {
-  if (!lastSubtitleRequestUrl) {
-    console.error('[BilingualTube] No subtitle request URL saved')
-    return null
-  }
-
-  try {
-    // Modify the lang parameter of the URL
-    const url = new URL(lastSubtitleRequestUrl)
-    url.searchParams.set('lang', targetLang)
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        [INTERNAL_REQUEST_HEADER]: 'true',
-      },
-    })
-    if (!response.ok) {
-      console.error(
-        '[BilingualTube] Failed to fetch subtitle:',
-        response.status,
-      )
-      return null
-    }
-    const data = (await response.json()) as GetTimedtextResp
-    return data
-  } catch (error) {
-    console.error('[BilingualTube] Error fetching subtitle:', error)
-    return null
-  }
-}
-
-/**
- * Try to load official translation subtitles (if available)
- */
-async function loadOfficialTranslationIfAvailable(
-  lastSubtitleRequestUrl: string,
-) {
-  if (!store.subtitle) {
-    return
-  }
-
-  const settings = await eventMessager.sendMessage('getSettings')
-  const targetLang = settings.to ?? 'en'
-  const sourceLang = store.subtitle.lang
-
-  // If source and target languages are the same, no need to load translation
-  if (normalizeLanguageCode(sourceLang) === normalizeLanguageCode(targetLang)) {
-    console.log('[BilingualTube] Source and target languages are the same')
-    return
-  }
-
-  // Get all available caption tracks
-  const captionTracks = getAvailableCaptionTracks()
-  if (captionTracks.length === 0) {
-    console.log('[BilingualTube] No caption tracks found')
-    return
-  }
-
-  console.log(
-    `[BilingualTube] Available caption tracks:`,
-    captionTracks.map((t) => `${t.languageCode} (${t.name.simpleText})`),
-  )
-
-  // Find official subtitles for the target language
-  const translationTrack = findOfficialTranslationTrack(
-    captionTracks,
-    targetLang,
-    sourceLang,
-  )
-
-  if (!translationTrack) {
-    console.log(
-      `[BilingualTube] No official translation track found for ${targetLang}`,
-    )
-    return
-  }
-
-  console.log(
-    `[BilingualTube] Found official translation track: ${translationTrack.name.simpleText} (${translationTrack.languageCode})`,
-  )
-
-  // Load translation subtitle data by replaying the request
-  const translationData = await fetchSubtitleByReplay(
-    translationTrack.languageCode,
-    lastSubtitleRequestUrl,
-  )
-  if (!translationData || !translationData.events) {
-    console.error('[BilingualTube] Failed to load translation subtitle data')
-    return
-  }
-
-  // Official multilingual subtitles don't need sentence splitting, only standard preprocessing
-  const translationCues = convertYoutubeToStandardFormat(translationData)
-  store.setOfficialTranslation(
-    translationTrack.languageCode,
-    translationData,
-    translationCues,
-  )
-
-  console.log(
-    `[BilingualTube] Loaded official translation: ${translationCues.length} cues`,
-  )
 }
 
 // Translation related
@@ -512,14 +325,6 @@ async function isChineseVariantConversion(): Promise<boolean> {
 async function triggerTranslation(currentTime: number) {
   if (isTranslating) return
 
-  // If official translation subtitles are available, skip API translation
-  if (store.subtitle?.officialTranslation) {
-    // console.log(
-    //   '[BilingualTube] Official translation available, skipping API translation',
-    // )
-    return
-  }
-
   const cues = store.subtitle?.cues ?? []
   if (!shouldTriggerTranslation(cues, currentTime)) {
     return
@@ -527,9 +332,9 @@ async function triggerTranslation(currentTime: number) {
 
   // Check if source and target languages are the same
   if (await isSameLanguage()) {
-    console.log(
-      '[BilingualTube] Source and target languages are the same, skipping translation',
-    )
+    // console.log(
+    //   '[BilingualTube] Source and target languages are the same, skipping translation',
+    // )
     return
   }
 

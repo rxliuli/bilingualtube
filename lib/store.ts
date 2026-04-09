@@ -9,11 +9,6 @@ type SubtitleEntry = {
   lang: string
   text: GetTimedtextResp
   cues: TranslationToken[]
-  officialTranslation?: {
-    lang: string
-    text: GetTimedtextResp
-    cues: TranslationToken[]
-  }
 }
 
 type Listener = (currentTime: number) => void
@@ -26,16 +21,6 @@ class SubtitleStore {
 
   setSubtitle(subtitle: SubtitleEntry) {
     this.subtitle = subtitle
-  }
-
-  setOfficialTranslation(
-    lang: string,
-    text: GetTimedtextResp,
-    cues: TranslationToken[],
-  ) {
-    if (this.subtitle) {
-      this.subtitle.officialTranslation = { lang, text, cues }
-    }
   }
 
   setCurrentTime(time: number) {
