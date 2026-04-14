@@ -77,7 +77,7 @@ export function OptionsForm() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">BilingualTube Settings</h1>
           <a
-            href="https://discord.gg/C2baQRZUCW"
+            href="https://discord.gg/gFhKUthc88"
             target="_blank"
             rel="noopener noreferrer"
             title="Join our Discord"
