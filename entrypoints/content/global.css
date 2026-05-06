@@ -6,7 +6,9 @@
   display: none;
 
   position: absolute;
-  z-index: 99999;
+  /* Match native .caption-window so YouTube UI (settings menu, end cards,
+     etc.) layers above the overlay just like it does over native captions. */
+  z-index: 41;
   touch-action: none;
   text-align: center;
   overflow: hidden;
@@ -15,9 +17,11 @@
   bottom: calc(var(--yt-delhi-bottom-controls-height, 72px) + 2%);
 
   white-space: pre-wrap;
-  font-size: 2.5rem;
+
+  /* YouTube default caption style — used until a real .ytp-caption-segment is
+     rendered and mirrored. Once mirrored, JS sets these via inline style and
+     overrides the rules below. */
   color: rgb(255, 255, 255);
-  fill: rgb(255, 255, 255);
   font-family: 'YouTube Noto', Roboto, Arial, Helvetica, Verdana,
     'PT Sans Caption', sans-serif;
 }
@@ -25,8 +29,8 @@
 #bilingual-tube-subtitle-overlay .subtitle-original,
 #bilingual-tube-subtitle-overlay .subtitle-translated {
   display: inline-block;
-  background: rgba(8, 8, 8, 0.75);
-  padding: 0 1rem;
+  padding: 0 0.5em;
+  background-color: rgba(8, 8, 8, 0.75);
 }
 
 #bilingual-tube-subtitle-overlay .subtitle-translated {

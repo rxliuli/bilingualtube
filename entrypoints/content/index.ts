@@ -16,6 +16,7 @@ import {
   shouldTriggerTranslation,
 } from '@/lib/subtitles/cues-utils'
 import { restorePunctuation } from '@/lib/subtitles/restorePunctuationInSubtitles'
+import { mirrorNativeCaptionStyle } from './subtitleStyleMirror'
 
 // Header to identify internal extension requests
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
@@ -189,6 +190,7 @@ function setupSubtitleUI() {
   document.head.appendChild(style)
   // Inject subtitle overlay UI component
   const subtitleOverlay = createSubtitleOverlay()
+  const stopStyleMirror = mirrorNativeCaptionStyle(subtitleOverlay.element)
   if (!isLive()) {
     subtitleOverlay.update('BilingualTube Subtitle Loaded')
   }
@@ -222,6 +224,7 @@ function setupSubtitleUI() {
   })
   return () => {
     document.head.removeChild(style)
+    stopStyleMirror()
     subtitleOverlay.destroy()
     clean()
   }
@@ -232,7 +235,9 @@ function createSubtitleOverlay() {
   if (!moviePlayer) {
     throw new Error('Movie player not found')
   }
-  let container = document.querySelector('#bilingual-tube-subtitle-overlay')
+  let container = document.querySelector<HTMLDivElement>(
+    '#bilingual-tube-subtitle-overlay',
+  )
   if (!container) {
     container = document.createElement('div')
     container.id = 'bilingual-tube-subtitle-overlay'
@@ -258,6 +263,7 @@ function createSubtitleOverlay() {
   ) as HTMLDivElement
 
   return {
+    element: container,
     update(original: string, translated?: string) {
       originalDiv.textContent = original
       if (translated) {
