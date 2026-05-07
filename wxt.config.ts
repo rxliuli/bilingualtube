@@ -16,6 +16,7 @@ export default defineConfig({
       alias: {
         '@': __dirname,
       },
+      conditions: ['onnxruntime-web-use-extern-wasm'],
     },
     // build: {
     //   minify: false,
