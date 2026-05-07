@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Card,
@@ -15,11 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+
 import { getMergedSettings, getSyncSettings, setSyncSettings, Settings } from '@/lib/settings'
 import { toast } from 'sonner'
 import { FaDiscord } from 'react-icons/fa'
 import { langs, ToLang } from '../../../lib/translate/lang'
+import { testOpenAIConnection } from '@/lib/translate/openai'
 
 export function OptionsForm() {
   const queryClient = useQueryClient()
@@ -69,7 +72,7 @@ export function OptionsForm() {
 
   if (!settings) return null
 
-  const currentEngine = settings.engine || 'microsoft'
+  const currentEngine = settings.engine ?? 'microsoft'
 
   return (
     <div className="container max-w-4xl mx-auto px-2 py-4 md:px-0 md:py-8 space-y-6">
@@ -183,23 +186,42 @@ export function OptionsForm() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="openai-prompt">OpenAI Prompt</Label>
-                <Textarea
-                  id="openai-prompt"
-                  placeholder="Enter custom translation prompt..."
-                  value={settings['openai.prompt'] || ''}
-                  onChange={(e) =>
-                    updateSetting({ 'openai.prompt': e.target.value })
-                  }
-                  rows={8}
-                  className="font-mono text-sm"
-                />
-              </div>
+              <TestConnectionButton settings={settings} />
             </>
           )}
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function TestConnectionButton({ settings }: { settings: Settings }) {
+  const [testing, setTesting] = useState(false)
+
+  async function handleTest() {
+    setTesting(true)
+    try {
+      await testOpenAIConnection({
+        apiKey: settings['openai.apiKey'],
+        baseUrl: settings['openai.baseUrl'],
+        model: settings['openai.model'],
+      })
+      toast.success('Connection successful!')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      toast.error('Connection failed: ' + message)
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  return (
+    <Button
+      variant="outline"
+      onClick={handleTest}
+      disabled={testing}
+    >
+      {testing ? 'Testing...' : 'Test Connection'}
+    </Button>
   )
 }

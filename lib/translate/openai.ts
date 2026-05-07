@@ -70,11 +70,24 @@ Translate to {{Target Language}}:
 {{Text to Translate}}
 `.trim()
 
-interface OpenAIConfig {
+export interface OpenAIConfig {
   apiKey?: string
   baseUrl?: string
   model?: string
   prompt?: string
+}
+
+export async function testOpenAIConnection(options: OpenAIConfig): Promise<void> {
+  if (!options.apiKey) {
+    throw new Error('API Key is not set')
+  }
+  if (!options.baseUrl) {
+    throw new Error('Base URL is not set')
+  }
+  await sendOfCompletion(
+    'Translate to English: hello',
+    options,
+  )
 }
 
 export function openai(options: OpenAIConfig): Translator {
@@ -164,7 +177,8 @@ async function sendOfResponse(text: string, options: OpenAIConfig) {
     }),
   })
   if (!r.ok) {
-    throw new Error(await r.text())
+    const body = await r.text()
+    throw new Error(`${r.status} ${body}`.trim())
   }
   const data = await r.json()
   return data.output[0].content[0].text as string
@@ -188,7 +202,8 @@ async function sendOfCompletion(text: string, options: OpenAIConfig) {
     }),
   })
   if (!r.ok) {
-    throw new Error(await r.text())
+    const body = await r.text()
+    throw new Error(`${r.status} ${body}`.trim())
   }
   const data = await r.json()
   return data.choices[0].message.content as string
