@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { openai } from './openai'
 import { Translator } from './types'
 
-describe('translate/openai', () => {
+describe.skipIf(!import.meta.env.VITE_OPENAI_API_KEY)('translate/openai', () => {
   let translator: Translator
   beforeEach(() => {
     translator = openai({

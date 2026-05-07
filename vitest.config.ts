@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { playwright } from '@vitest/browser-playwright'
 
 export default defineConfig({
@@ -11,7 +10,10 @@ export default defineConfig({
         optimizeDeps: {
           exclude: ['onnxruntime-web'],
         },
-        plugins: [react(), tsconfigPaths()] as any,
+        plugins: [react()],
+        resolve: {
+          tsconfigPaths: true,
+        },
         test: {
           exclude: ['**/*.unit.test.ts', 'node_modules/**'],
           browser: {
@@ -23,7 +25,9 @@ export default defineConfig({
         },
       },
       {
-        plugins: [tsconfigPaths()] as any,
+        resolve: {
+          tsconfigPaths: true,
+        },
         test: {
           include: ['**/*.unit.test.ts'],
           exclude: ['*.test.ts', 'node_modules/**'],
