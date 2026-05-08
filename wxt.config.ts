@@ -11,12 +11,23 @@ export default defineConfig({
     projectType: 'macos',
   },
   vite: () => ({
-    plugins: [tailwindcss()] as any,
+    plugins: [
+      tailwindcss(),
+      {
+        name: 'skip-wasm-inline',
+        transform(code: string) {
+          if (!code.includes('ort-wasm-simd-threaded.wasm')) return
+          return code.replace(
+            /new URL\("ort-wasm-simd-threaded\.wasm",\s*import\.meta\.url\)/g,
+            '({href:""})',
+          )
+        },
+      },
+    ] as any,
     resolve: {
       alias: {
         '@': __dirname,
       },
-      conditions: ['onnxruntime-web-use-extern-wasm'],
     },
     // build: {
     //   minify: false,
