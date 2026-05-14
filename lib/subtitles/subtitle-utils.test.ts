@@ -44,6 +44,13 @@ describe('subtitle-utils', () => {
       )
       expect(hasMissingPunctuation(data)).true
     })
+    it('should not be fooled by number-group commas like 20,000', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-mlp-s5-e22.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).true
+    })
   })
   describe('sentencesInSubtitles', () => {
     it('Should compile subtitle merge correctly', async () => {

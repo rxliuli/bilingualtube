@@ -46,9 +46,9 @@ export function convertYoutubeToStandardFormat(
  */
 export function hasMissingPunctuation(tokens: TimedToken[]): boolean {
   for (const t of tokens) {
-    // If punctuation exists, consider it doesn't need conversion
-    // not " 13.2" or "37.2c" or url
-    if (/[,?!]/.test(t.text.trim())) {
+    // Strip number-group commas (e.g. "20,000") before checking
+    const text = t.text.trim().replace(/\d,\d/g, '')
+    if (/[,?!]/.test(text)) {
       return false
     }
   }
