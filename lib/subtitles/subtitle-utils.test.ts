@@ -431,6 +431,76 @@ describe('subtitle-utils', () => {
       console.log(r2.find((t) => t.text.includes('variety')))
       // expect(contents).contain('variety')
     })
+    // https://youtu.be/FN_44I_3seM?t=82
+    // ">> Who? Oh," and "so Princess Celestia..." have a ~16s gap and should be split
+    it('should split segments when there is a large time gap between tokens', () => {
+      const events: TimedtextEvent[] = [
+        {
+          tStartMs: 78320,
+          dDurationMs: 5400,
+          wWinId: 1,
+          segs: [{ utf8: '>> Who?', acAsrConf: 0 }],
+        },
+        {
+          tStartMs: 80710,
+          dDurationMs: 3010,
+          wWinId: 1,
+          aAppend: 1,
+          segs: [{ utf8: '\n' }],
+        },
+        {
+          tStartMs: 80720,
+          dDurationMs: 3000,
+          wWinId: 1,
+          segs: [{ utf8: 'Oh,', acAsrConf: 0 }],
+        },
+        {
+          tStartMs: 99590,
+          wWinId: 1,
+          aAppend: 1,
+          segs: [{ utf8: '\n' }],
+        },
+        {
+          tStartMs: 99600,
+          dDurationMs: 5680,
+          wWinId: 1,
+          segs: [
+            { utf8: 'so', acAsrConf: 0 },
+            { utf8: ' Princess', tOffsetMs: 640, acAsrConf: 0 },
+            { utf8: ' Celestia,', tOffsetMs: 1040, acAsrConf: 0 },
+          ],
+        },
+        {
+          tStartMs: 102630,
+          dDurationMs: 2650,
+          wWinId: 1,
+          aAppend: 1,
+          segs: [{ utf8: '\n' }],
+        },
+        {
+          tStartMs: 102640,
+          dDurationMs: 4799,
+          wWinId: 1,
+          segs: [
+            { utf8: "you'll", acAsrConf: 0 },
+            { utf8: ' never', tOffsetMs: 400, acAsrConf: 0 },
+            { utf8: ' guess', tOffsetMs: 640, acAsrConf: 0 },
+            { utf8: " who's", tOffsetMs: 960, acAsrConf: 0 },
+            { utf8: ' back.', tOffsetMs: 1280, acAsrConf: 0 },
+          ],
+        },
+      ]
+      const data = convertYoutubeToStandardFormat({ events })
+      const merged = sentencesInSubtitles(data, 'en')
+      const texts = merged.map((it) => it.text)
+      // ">> Who?" should be its own segment (sentenceStartRegex + sentenceEndRegex)
+      expect(texts[0]).toBe('>> Who?')
+      // "Oh," should be split from "so Princess Celestia..." due to ~16s time gap
+      expect(texts[1]).toBe('Oh,')
+      expect(texts[2]).toBe(
+        "so Princess Celestia, you'll never guess who's back.",
+      )
+    })
   })
   describe('Japanese subtitle merge', () => {
     // https://www.youtube.com/watch?v=O_ykW5H2HEg

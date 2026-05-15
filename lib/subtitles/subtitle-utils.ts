@@ -142,6 +142,8 @@ function getSentenceSplitRule(lang: string): SentenceSplitRule {
   return getDefaultSentenceSplitRule()
 }
 
+const TIME_GAP_THRESHOLD = 2
+
 export function sentencesInSubtitles(
   tokens: TimedToken[],
   lang: string,
@@ -151,6 +153,16 @@ export function sentencesInSubtitles(
   let current: TimedToken[] = []
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
+
+    // Force split when there's a large time gap between tokens
+    if (
+      current.length > 0 &&
+      t.start - current[current.length - 1].end > TIME_GAP_THRESHOLD
+    ) {
+      sentences.push(mergeTokens(current, rule.separator))
+      current = []
+    }
+
     // [Music] and [Applause] tags become their own sentences
     if (rule.specialTags.includes(t.text)) {
       if (current.length > 0) {
@@ -166,6 +178,10 @@ export function sentencesInSubtitles(
         // First collect the current sentence
         sentences.push(mergeTokens(current, rule.separator))
         current = []
+      }
+      if (rule.sentenceEndRegex.test(t.text)) {
+        sentences.push(t)
+        continue
       }
       current.push(t)
       continue
