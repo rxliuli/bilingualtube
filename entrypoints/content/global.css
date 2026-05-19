@@ -37,7 +37,7 @@
   opacity: 0.9;
 }
 
-#movie_player:has([aria-pressed='true']):has(.ytp-subtitles-button-icon[fill-opacity="1"]) #bilingual-tube-subtitle-overlay {
+#movie_player:has(.ytp-subtitles-button[aria-pressed="true"]) #bilingual-tube-subtitle-overlay {
   display: flex;
   flex-direction: column;
   align-items: center;
