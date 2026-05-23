@@ -8,6 +8,8 @@ export const eventMessager = defineCustomEventMessaging<{
     wasmUrl: string
     sherpaModelPath: string
     sherpaVocabPath: string
+    cjkPunctModelPath: string
+    cjkPunctVocabPath: string
   }
 }>({
   namespace: 'bilingual-tube-event-message',

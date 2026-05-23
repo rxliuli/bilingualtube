@@ -15,7 +15,10 @@ import {
   getCuesToTranslate,
   shouldTriggerTranslation,
 } from '@/lib/subtitles/cues-utils'
-import { restorePunctuation } from '@/lib/subtitles/restorePunctuationInSubtitles'
+import {
+  restorePunctuation,
+  restorePunctuationJa,
+} from '@/lib/subtitles/restorePunctuationInSubtitles'
 import { mirrorNativeCaptionStyle } from './subtitleStyleMirror'
 
 // Header to identify internal extension requests
@@ -83,15 +86,21 @@ function setupSubtitleInterception() {
         )
       }
       const searchParams = new URL(c.req.url).searchParams
-      const lang = searchParams.get('lang')
-      if (!lang) {
+      const rawLang = searchParams.get('lang')
+      if (!rawLang) {
         console.error(
           '[BilingualTube] Subtitle lang not found in request URL: ',
           c.req.url,
         )
         throw new Error('Subtitle lang not found in request URL.')
       }
+      // YouTube returns BCP-47 codes like ja-JP / zh-CN; normalize so the
+      // branches below can do strict equality checks.
+      const lang = normalizeLanguageCode(rawLang)
       const kind = searchParams.get('kind')
+      console.log(
+        `[BilingualTube] Subtitle track: lang=${rawLang} (normalized=${lang}) kind=${kind}`,
+      )
       let data = convertYoutubeToStandardFormat(resp)
       const t = new URL(location.href).searchParams.get('t')
       let seconds = 0
@@ -100,16 +109,30 @@ function setupSubtitleInterception() {
       }
 
       if (kind === 'asr') {
-        if (lang === 'en' && hasMissingPunctuation(data)) {
+        const needsSherpa = lang === 'en' && hasMissingPunctuation(data, 'en')
+        // YouTube ASR for Japanese is partially punctuated (~50% of cues get
+        // a 。 from the speech recognizer). The remaining run-on cues need our
+        // model. Running it on already-punctuated cues is harmless — the
+        // model learned to predict NONE around existing punct.
+        const needsCjkJa = lang === 'ja'
+        console.log(
+          `[BilingualTube] ASR routing: needsSherpa=${needsSherpa} needsCjkJa=${needsCjkJa}`,
+        )
+        if (needsSherpa || needsCjkJa) {
           try {
-            console.log('[BilingualTube] Auto-generated subtitles detected.')
+            console.log(
+              `[BilingualTube] Auto-generated subtitles detected, using ${needsSherpa ? 'sherpa-en' : 'cjk-punct-ja'}`,
+            )
             const options = await eventMessager.sendMessage(
               'getPunctuationOptions',
             )
             // Use streaming, update subtitles after each window is processed
             const signal = store.getSignal()
+            const stream = needsSherpa
+              ? restorePunctuation(data, options)
+              : restorePunctuationJa(data, options)
             let lastCuesLength = 0
-            for await (const processed of restorePunctuation(data, options)) {
+            for await (const processed of stream) {
               if (signal.aborted) {
                 console.log('[BilingualTube] Punctuation restoration aborted.')
                 throw new Error('Punctuation restoration aborted.')

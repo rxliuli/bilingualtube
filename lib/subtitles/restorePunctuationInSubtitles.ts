@@ -5,6 +5,7 @@ import {
   PunctuationRestorationModel,
   AnnotatedToken,
 } from './PunctuationRestorationModel'
+import { CjkPunctModel } from './CjkPunctModel'
 
 function mapAnnotatedToTimed(tokens: AnnotatedToken[]): TimedToken[] {
   return tokens.map((t) => ({
@@ -20,6 +21,8 @@ interface PunctuationOptions {
   wasmUrl: string
   sherpaModelPath: string
   sherpaVocabPath: string
+  cjkPunctModelPath?: string
+  cjkPunctVocabPath?: string
 }
 
 async function createModel(options?: PunctuationOptions) {
@@ -49,6 +52,32 @@ export async function* restorePunctuation(
   let result: TimedToken[] = []
   for await (const processed of model.annotate(tokens)) {
     result = mapAnnotatedToTimed(processed)
+    yield result
+  }
+  return result
+}
+
+/**
+ * Japanese punctuation restoration via the char-level CJK model. Streams
+ * token-with-punctuation arrays for compatibility with the same downstream
+ * pipeline that consumes restorePunctuation's output.
+ */
+export async function* restorePunctuationJa(
+  tokens: TimedToken[],
+  options: PunctuationOptions,
+): AsyncGenerator<TimedToken[], TimedToken[]> {
+  const model = new CjkPunctModel()
+  await model.load(
+    options.cjkPunctModelPath ??
+      ('/cjk-punct-ja/model.int8.onnx' satisfies PublicPath),
+    options.cjkPunctVocabPath ??
+      ('/cjk-punct-ja/vocab.json' satisfies PublicPath),
+    options.wasmUrl,
+  )
+
+  let result: TimedToken[] = []
+  for await (const annotated of model.annotate(tokens)) {
+    result = annotated
     yield result
   }
   return result

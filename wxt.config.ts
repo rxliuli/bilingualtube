@@ -53,6 +53,8 @@ export default defineConfig({
             '/onnxruntime-web/ort-wasm-simd-threaded.wasm',
             '/sherpa-onnx-online-punct-en-2024-08-06/bpe.vocab',
             '/sherpa-onnx-online-punct-en-2024-08-06/model.int8.onnx',
+            '/cjk-punct-ja/model.int8.onnx',
+            '/cjk-punct-ja/vocab.json',
           ],
           matches: ['https://www.youtube.com/*'],
         },

@@ -21,6 +21,10 @@ export default defineContentScript({
       sherpaVocabPath: browser.runtime.getURL(
         '/sherpa-onnx-online-punct-en-2024-08-06/bpe.vocab',
       ),
+      cjkPunctModelPath: browser.runtime.getURL(
+        '/cjk-punct-ja/model.int8.onnx',
+      ),
+      cjkPunctVocabPath: browser.runtime.getURL('/cjk-punct-ja/vocab.json'),
     }))
   },
 })

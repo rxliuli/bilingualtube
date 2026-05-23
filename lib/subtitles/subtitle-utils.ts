@@ -41,10 +41,30 @@ export function convertYoutubeToStandardFormat(
     .filter((t) => t.text !== '')
 }
 
+const CJK_LANGS = new Set(['zh-Hans', 'zh-Hant', 'ja', 'ko'])
+const CJK_PUNCT_RE = /[。？！，、.,?!]/
+const CJK_PUNCT_RATIO_THRESHOLD = 0.05
+
 /**
- * Determine if subtitles are missing punctuation
+ * Determine if subtitles are missing punctuation.
+ *
+ * For English (and other Latin scripts), any single non-number `[,?!]` is
+ * enough to consider the track punctuated. For CJK languages, the check is
+ * ratio-based: at least `CJK_PUNCT_RATIO_THRESHOLD` of cues must contain
+ * sentence-ending punctuation. This avoids stray `[音楽]?` etc. flipping a
+ * whole video into "has punctuation" mode.
  */
-export function hasMissingPunctuation(tokens: TimedToken[]): boolean {
+export function hasMissingPunctuation(
+  tokens: TimedToken[],
+  lang: string = 'en',
+): boolean {
+  if (tokens.length === 0) return true
+
+  if (CJK_LANGS.has(lang)) {
+    const withPunct = tokens.filter((t) => CJK_PUNCT_RE.test(t.text)).length
+    return withPunct / tokens.length < CJK_PUNCT_RATIO_THRESHOLD
+  }
+
   for (const t of tokens) {
     // Strip number-group commas (e.g. "20,000") before checking
     const text = t.text.trim().replace(/\d,\d/g, '')
@@ -121,7 +141,9 @@ function getCJKSentenceSplitRule(lang: string): SentenceSplitRule {
     ko: ['[음악]'],
   }
   return {
-    maxLength: 100,
+    // CJK chars carry more info per char than Latin; 40 chars matches typical
+    // subtitle line length and reads as ~one screen of text.
+    maxLength: 40,
     separator: '',
     sentenceStartRegex: /^(>>)/,
     sentenceEndRegex: /[。！？.!?]$/,
@@ -161,6 +183,32 @@ export function sentencesInSubtitles(
     ) {
       sentences.push(mergeTokens(current, rule.separator))
       current = []
+    }
+
+    // If appending `t` would push `current` past maxLength, eagerly emit
+    // current first. This fires BEFORE the sentence-end branch, so even when
+    // `t` ends with `。`, we don't drag an already-comma-terminated clause
+    // into the same cue. Without this, a [..., '...感じで、'] buffer would get
+    // merged with the next 「…ですね。」 fragment into one 47-char cue even with
+    // maxLength=40.
+    if (current.length > 0) {
+      const projected = getCurrentLength(current) + t.text.length + 1
+      if (projected > rule.maxLength) {
+        const splitIndex = findBestSplitPoint(
+          current,
+          rule.maxLength,
+          rule.commaRegex,
+        )
+        if (splitIndex >= 0 && splitIndex < current.length - 1) {
+          sentences.push(
+            mergeTokens(current.slice(0, splitIndex + 1), rule.separator),
+          )
+          current = current.slice(splitIndex + 1)
+        } else {
+          sentences.push(mergeTokens(current, rule.separator))
+          current = []
+        }
+      }
     }
 
     // [Music] and [Applause] tags become their own sentences
