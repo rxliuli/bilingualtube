@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from 'vitest'
 import {
   convertYoutubeToStandardFormat,
   hasMissingPunctuation,
+  resolveSubtitleTrack,
   sentencesInSubtitles,
 } from './subtitle-utils'
 import { GetTimedtextResp, TimedtextEvent } from './youtube-types'
@@ -530,6 +531,61 @@ describe('subtitle-utils', () => {
       const r = sentencesInSubtitles(data, 'zh-Hans')
       const contents = r.map((it) => it.text)
       console.log(contents.slice(0, 10))
+    })
+  })
+  describe('resolveSubtitleTrack', () => {
+    it('routes English ASR without punctuation to the sherpa-en model', () => {
+      const data = [{ start: 0, end: 1, text: 'hello world how are you' }]
+      expect(resolveSubtitleTrack({ rawLang: 'en', tlang: null, kind: 'asr', data })).toEqual({
+        lang: 'en',
+        mode: 'sherpa-en',
+      })
+    })
+    it('routes already-punctuated English ASR to sentence grouping', () => {
+      const data = [{ start: 0, end: 1, text: 'Hello, world.' }]
+      expect(resolveSubtitleTrack({ rawLang: 'en', tlang: null, kind: 'asr', data })).toEqual({
+        lang: 'en',
+        mode: 'sentences',
+      })
+    })
+    it('routes Japanese ASR to the cjk-punct-ja model', () => {
+      const data = [{ start: 0, end: 1, text: 'こんにちは' }]
+      expect(resolveSubtitleTrack({ rawLang: 'ja-JP', tlang: null, kind: 'asr', data })).toEqual({
+        lang: 'ja',
+        mode: 'cjk-punct-ja',
+      })
+    })
+    it('treats manual (non-asr) captions as raw line-level cues', () => {
+      const data = [{ start: 0, end: 1, text: 'A full caption line.' }]
+      expect(resolveSubtitleTrack({ rawLang: 'en', tlang: null, kind: null, data })).toEqual({
+        lang: 'en',
+        mode: 'raw',
+      })
+    })
+    // Regression: YouTube auto-translate sends kind=asr&lang=en&tlang=fr but the
+    // bytes are already French. It must be labelled `fr`, never fed to sherpa-en.
+    it('labels a YouTube auto-translated track by its tlang and skips the ASR models', async () => {
+      const resp = (await import('./assets/timedtext-B6oUohZnKIc-french.json'))
+        .default as GetTimedtextResp
+      const data = convertYoutubeToStandardFormat(resp)
+      const resolved = resolveSubtitleTrack({
+        rawLang: 'en',
+        tlang: 'fr',
+        kind: 'asr',
+        data,
+      })
+      expect(resolved).toEqual({ lang: 'fr', mode: 'sentences' })
+
+      // The displayed result must be valid, well-ordered French cues.
+      const cues = sentencesInSubtitles(data, resolved.lang)
+      expect(cues.length).toBeGreaterThan(0)
+      expect(cues[0].text.toLowerCase()).toContain('il était une fois')
+      for (let i = 0; i < cues.length; i++) {
+        expect(cues[i].end).toBeGreaterThanOrEqual(cues[i].start)
+        if (i > 0) {
+          expect(cues[i].start).toBeGreaterThanOrEqual(cues[i - 1].end)
+        }
+      }
     })
   })
 })

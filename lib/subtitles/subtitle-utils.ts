@@ -1,5 +1,6 @@
 import { TimedToken } from './PunctuationRestorationModel'
 import { GetTimedtextResp } from './youtube-types'
+import { normalizeLanguageCode } from '@/lib/translate/lang'
 
 /**
  * Convert YouTube subtitle format to standard timed token format
@@ -73,6 +74,66 @@ export function hasMissingPunctuation(
     }
   }
   return true
+}
+
+/**
+ * How a subtitle track should be processed before display.
+ * - `sherpa-en` / `cjk-punct-ja`: run the matching punctuation-restoration model
+ * - `sentences`: word-level segments, group into sentences (no model)
+ * - `raw`: already line-level cues (manual captions), use as-is
+ */
+export type SubtitleTrackMode =
+  | 'sherpa-en'
+  | 'cjk-punct-ja'
+  | 'sentences'
+  | 'raw'
+
+export interface ResolvedSubtitleTrack {
+  /** Effective BCP-47 language of the bytes we received. */
+  lang: string
+  mode: SubtitleTrackMode
+}
+
+/**
+ * Decide the language and processing mode of a timedtext response from its
+ * request params.
+ *
+ * The key subtlety is `tlang`: when YouTube auto-translates a track it appends
+ * `tlang` and returns text already in that language, while the URL still
+ * carries the source `lang` (and often `kind=asr`). That text is clean,
+ * human-readable translation — NOT raw ASR — so it must be labelled with
+ * `tlang` and must never be fed to the source-language punctuation models.
+ */
+export function resolveSubtitleTrack(params: {
+  rawLang: string
+  tlang: string | null
+  kind: string | null
+  data: TimedToken[]
+}): ResolvedSubtitleTrack {
+  const { rawLang, tlang, kind, data } = params
+  const lang = normalizeLanguageCode(tlang ?? rawLang)
+
+  // Auto-translated track: clean text already in `tlang`. Group word-level
+  // segments into sentences; never run the ASR punctuation models.
+  if (tlang) {
+    return { lang, mode: 'sentences' }
+  }
+
+  if (kind === 'asr') {
+    if (lang === 'en' && hasMissingPunctuation(data, 'en')) {
+      return { lang, mode: 'sherpa-en' }
+    }
+    // YouTube ASR for Japanese is only ~50% punctuated; the model is a no-op on
+    // already-punctuated cues, so always route Japanese ASR through it.
+    if (lang === 'ja') {
+      return { lang, mode: 'cjk-punct-ja' }
+    }
+    // Better auto-generated subtitles: already punctuated, just group.
+    return { lang, mode: 'sentences' }
+  }
+
+  // Manual captions: events are already line-level cues.
+  return { lang, mode: 'raw' }
 }
 
 function findBestSplitPoint(

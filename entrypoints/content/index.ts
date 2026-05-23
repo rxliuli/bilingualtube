@@ -7,7 +7,7 @@ import { observeElement } from '@/lib/observeElement'
 import { normalizeLanguageCode } from '@/lib/translate/lang'
 import {
   convertYoutubeToStandardFormat,
-  hasMissingPunctuation,
+  resolveSubtitleTrack,
   sentencesInSubtitles,
 } from '@/lib/subtitles/subtitle-utils'
 import {
@@ -94,95 +94,81 @@ function setupSubtitleInterception() {
         )
         throw new Error('Subtitle lang not found in request URL.')
       }
-      // YouTube returns BCP-47 codes like ja-JP / zh-CN; normalize so the
-      // branches below can do strict equality checks.
-      const lang = normalizeLanguageCode(rawLang)
+      // `tlang` marks a YouTube auto-translated track (see resolveSubtitleTrack).
+      const tlang = searchParams.get('tlang')
       const kind = searchParams.get('kind')
-      console.log(
-        `[BilingualTube] Subtitle track: lang=${rawLang} (normalized=${lang}) kind=${kind}`,
-      )
       let data = convertYoutubeToStandardFormat(resp)
+      const { lang, mode } = resolveSubtitleTrack({
+        rawLang,
+        tlang,
+        kind,
+        data,
+      })
+      console.log(
+        `[BilingualTube] Subtitle track: lang=${rawLang} (normalized=${lang}) kind=${kind} tlang=${tlang ?? '-'} mode=${mode}`,
+      )
       const t = new URL(location.href).searchParams.get('t')
       let seconds = 0
       if (t && t.match(/^\d+s$/)) {
         seconds = Number.parseInt(t.slice(0, -1), 10)
       }
 
-      if (kind === 'asr') {
-        const needsSherpa = lang === 'en' && hasMissingPunctuation(data, 'en')
-        // YouTube ASR for Japanese is partially punctuated (~50% of cues get
-        // a 。 from the speech recognizer). The remaining run-on cues need our
-        // model. Running it on already-punctuated cues is harmless — the
-        // model learned to predict NONE around existing punct.
-        const needsCjkJa = lang === 'ja'
-        console.log(
-          `[BilingualTube] ASR routing: needsSherpa=${needsSherpa} needsCjkJa=${needsCjkJa}`,
-        )
-        if (needsSherpa || needsCjkJa) {
-          try {
-            console.log(
-              `[BilingualTube] Auto-generated subtitles detected, using ${needsSherpa ? 'sherpa-en' : 'cjk-punct-ja'}`,
-            )
-            const options = await eventMessager.sendMessage(
-              'getPunctuationOptions',
-            )
-            // Use streaming, update subtitles after each window is processed
-            const signal = store.getSignal()
-            const stream = needsSherpa
+      if (mode === 'sherpa-en' || mode === 'cjk-punct-ja') {
+        try {
+          console.log(
+            `[BilingualTube] Auto-generated subtitles detected, using ${mode}`,
+          )
+          const options = await eventMessager.sendMessage(
+            'getPunctuationOptions',
+          )
+          // Use streaming, update subtitles after each window is processed
+          const signal = store.getSignal()
+          const stream =
+            mode === 'sherpa-en'
               ? restorePunctuation(data, options)
               : restorePunctuationJa(data, options)
-            let lastCuesLength = 0
-            for await (const processed of stream) {
-              if (signal.aborted) {
-                console.log('[BilingualTube] Punctuation restoration aborted.')
-                throw new Error('Punctuation restoration aborted.')
-              }
-              const cues = sentencesInSubtitles(processed, lang)
-
-              // Preserve existing translations for cues that haven't changed
-              const existingCues = store.subtitle?.cues || []
-              const mergedCues = cues.map((cue, i) => {
-                const existing = existingCues[i]
-                // If the cue text matches and has a translation, preserve it
-                if (existing && existing.text === cue.text && existing.translated) {
-                  return { ...cue, translated: existing.translated }
-                }
-                return cue
-              })
-
-              store.setSubtitle({
-                lang,
-                text: resp,
-                cues: mergedCues,
-              })
-
-              if (
-                cues.length > lastCuesLength &&
-                store.currentTime >= cues[lastCuesLength].start &&
-                store.currentTime <= cues[cues.length - 1].end
-              ) {
-                triggerTranslation(store.currentTime)
-              }
-              lastCuesLength = cues.length
+          let lastCuesLength = 0
+          for await (const processed of stream) {
+            if (signal.aborted) {
+              console.log('[BilingualTube] Punctuation restoration aborted.')
+              throw new Error('Punctuation restoration aborted.')
             }
-            console.log('[BilingualTube] Auto-generated subtitles processed.')
-          } catch (error) {
-            console.error(
-              '[BilingualTube] Punctuation restoration failed:',
-              error,
-            )
-            // Use original data on failure
-            data = sentencesInSubtitles(data, lang)
+            const cues = sentencesInSubtitles(processed, lang)
+
+            // Preserve existing translations for cues that haven't changed
+            const existingCues = store.subtitle?.cues || []
+            const mergedCues = cues.map((cue, i) => {
+              const existing = existingCues[i]
+              // If the cue text matches and has a translation, preserve it
+              if (
+                existing &&
+                existing.text === cue.text &&
+                existing.translated
+              ) {
+                return { ...cue, translated: existing.translated }
+              }
+              return cue
+            })
+
             store.setSubtitle({
               lang,
               text: resp,
-              cues: data,
+              cues: mergedCues,
             })
+
+            if (
+              cues.length > lastCuesLength &&
+              store.currentTime >= cues[lastCuesLength].start &&
+              store.currentTime <= cues[cues.length - 1].end
+            ) {
+              triggerTranslation(store.currentTime)
+            }
+            lastCuesLength = cues.length
           }
-        } else {
-          console.log(
-            '[BilingualTube] Better auto-generated subtitles detected.',
-          )
+          console.log('[BilingualTube] Auto-generated subtitles processed.')
+        } catch (error) {
+          console.error('[BilingualTube] Punctuation restoration failed:', error)
+          // Use original data on failure
           data = sentencesInSubtitles(data, lang)
           store.setSubtitle({
             lang,
@@ -190,7 +176,20 @@ function setupSubtitleInterception() {
             cues: data,
           })
         }
+      } else if (mode === 'sentences') {
+        // Already-clean text with word-level segments: better auto-generated
+        // ASR, or a YouTube auto-translated track. Group into sentences; never
+        // run the source-language punctuation models.
+        console.log('[BilingualTube] Clean subtitles, grouping into sentences.')
+        data = sentencesInSubtitles(data, lang)
+        store.setSubtitle({
+          lang,
+          text: resp,
+          cues: data,
+        })
+        await triggerTranslation(seconds)
       } else {
+        // Manual captions: events are already line-level cues.
         store.setSubtitle({
           lang,
           text: resp,
