@@ -145,11 +145,12 @@ export function OptionsForm() {
             value={currentEngine}
             onChange={(e) =>
               updateSetting({
-                engine: e.target.value as 'microsoft' | 'openai',
+                engine: e.target.value as 'microsoft' | 'google' | 'openai',
               })
             }
           >
             <NativeSelectOption value="microsoft">Microsoft</NativeSelectOption>
+            <NativeSelectOption value="google">Google</NativeSelectOption>
             <NativeSelectOption value="openai">OpenAI</NativeSelectOption>
           </NativeSelect>
         </div>

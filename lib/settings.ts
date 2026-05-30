@@ -6,7 +6,7 @@ export type DisplayMode = 'bilingual' | 'translation-only'
 
 export interface Settings {
   to?: ToLang
-  engine?: 'microsoft' | 'openai'
+  engine?: 'microsoft' | 'google' | 'openai'
   displayMode?: DisplayMode
 
   'openai.apiKey'?: string

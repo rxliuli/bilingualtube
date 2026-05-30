@@ -1,12 +1,14 @@
 import { messager } from '@/lib/message'
 import { getMergedSettings, Settings } from '@/lib/settings'
 import { microsoft } from '@/lib/translate/microsoft'
+import { google } from '@/lib/translate/google'
 import { openai } from '@/lib/translate/openai'
 import { get, set } from 'idb-keyval'
 
 function getTranslator(settings: Settings) {
   const list = [
     microsoft(),
+    google(),
     openai({
       apiKey: settings['openai.apiKey'],
       baseUrl: settings['openai.baseUrl'],
