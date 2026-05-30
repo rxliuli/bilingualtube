@@ -1,26 +1,20 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Button } from '@/components/ui/button'
 
-import { DisplayMode, getMergedSettings, getSyncSettings, setSyncSettings, Settings } from '@/lib/settings'
+import {
+  DisplayMode,
+  getMergedSettings,
+  getSyncSettings,
+  setSyncSettings,
+  Settings,
+} from '@/lib/settings'
 import { toast } from 'sonner'
 import { FaDiscord } from 'react-icons/fa'
+import { ExternalLink } from 'lucide-react'
 import { langs, ToLang } from '../../../lib/translate/lang'
 import { testOpenAIConnection } from '@/lib/translate/openai'
 
@@ -28,7 +22,11 @@ export function OptionsForm() {
   const queryClient = useQueryClient()
 
   // Load merged settings for display
-  const { data: settings, isLoading, error } = useQuery({
+  const {
+    data: settings,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['settings'],
     queryFn: getMergedSettings,
   })
@@ -75,141 +73,133 @@ export function OptionsForm() {
   const currentEngine = settings.engine ?? 'microsoft'
 
   return (
-    <div className="container max-w-4xl mx-auto px-2 py-4 md:px-0 md:py-8 space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">BilingualTube Settings</h1>
+    <div className="mx-auto max-w-md p-4 space-y-6">
+      <header className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">BilingualTube</h1>
           <a
-            href="https://discord.gg/gFhKUthc88"
+            href="https://store.rxliuli.com/"
             target="_blank"
             rel="noopener noreferrer"
-            title="Join our Discord"
-            className="text-[#5865F2] hover:text-[#4752C4] transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            <FaDiscord size={24} />
+            <ExternalLink className="w-3.5 h-3.5" />
+            Explore our other extensions
           </a>
         </div>
-        <p className="text-muted-foreground">
-          Configure your translation preferences and API settings
-        </p>
-      </div>
+        <a
+          href="https://discord.gg/gFhKUthc88"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Button variant="outline" size="icon" aria-label="Join Discord">
+            <FaDiscord className="h-5 w-5 text-blue-500" />
+          </Button>
+        </a>
+      </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Translation Settings</CardTitle>
-          <CardDescription>
-            Configure the translation engine and target language
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Target Language - Always visible */}
-          <div className="space-y-2">
-            <Label htmlFor="to">Target Language</Label>
-            <Select
-              value={settings.to || 'en'}
-              onValueChange={(value) => updateSetting({ to: value as ToLang })}
-            >
-              <SelectTrigger id="to">
-                <SelectValue placeholder="Select target language" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(langs)
-                  .filter(([code]) => code !== 'auto')
-                  .sort(([, nameA], [, nameB]) => nameA.localeCompare(nameB))
-                  .map(([code, name]) => (
-                    <SelectItem key={code} value={code}>
-                      {name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <form className="grid gap-6">
+        {/* Target Language - Always visible */}
+        <div className="space-y-2">
+          <Label htmlFor="to">Target Language</Label>
+          <NativeSelect
+            id="to"
+            value={settings.to || 'en'}
+            onChange={(e) => updateSetting({ to: e.target.value as ToLang })}
+          >
+            {Object.entries(langs)
+              .filter(([code]) => code !== 'auto')
+              .sort(([, nameA], [, nameB]) => nameA.localeCompare(nameB))
+              .map(([code, name]) => (
+                <NativeSelectOption key={code} value={code}>
+                  {name}
+                </NativeSelectOption>
+              ))}
+          </NativeSelect>
+        </div>
 
-          {/* Subtitle Display - Always visible */}
-          <div className="space-y-2">
-            <Label htmlFor="displayMode">Subtitle Display</Label>
-            <Select
-              value={settings.displayMode ?? 'bilingual'}
-              onValueChange={(value) =>
-                updateSetting({ displayMode: value as DisplayMode })
-              }
-            >
-              <SelectTrigger id="displayMode">
-                <SelectValue placeholder="Select subtitle display" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bilingual">Original + Translation</SelectItem>
-                <SelectItem value="translation-only">Translation only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Subtitle Display - Always visible */}
+        <div className="space-y-2">
+          <Label htmlFor="displayMode">Subtitle Display</Label>
+          <NativeSelect
+            id="displayMode"
+            value={settings.displayMode ?? 'bilingual'}
+            onChange={(e) =>
+              updateSetting({ displayMode: e.target.value as DisplayMode })
+            }
+          >
+            <NativeSelectOption value="bilingual">
+              Original + Translation
+            </NativeSelectOption>
+            <NativeSelectOption value="translation-only">
+              Translation only
+            </NativeSelectOption>
+          </NativeSelect>
+        </div>
 
-          {/* Engine - Always visible */}
-          <div className="space-y-2">
-            <Label htmlFor="engine">Engine</Label>
-            <Select
-              value={currentEngine}
-              onValueChange={(value) =>
-                updateSetting({ engine: value as 'microsoft' | 'openai' })
-              }
-            >
-              <SelectTrigger id="engine">
-                <SelectValue placeholder="Select translation engine" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="microsoft">Microsoft</SelectItem>
-                <SelectItem value="openai">OpenAI</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Engine - Always visible */}
+        <div className="space-y-2">
+          <Label htmlFor="engine">Engine</Label>
+          <NativeSelect
+            id="engine"
+            value={currentEngine}
+            onChange={(e) =>
+              updateSetting({
+                engine: e.target.value as 'microsoft' | 'openai',
+              })
+            }
+          >
+            <NativeSelectOption value="microsoft">Microsoft</NativeSelectOption>
+            <NativeSelectOption value="openai">OpenAI</NativeSelectOption>
+          </NativeSelect>
+        </div>
 
-          {/* OpenAI-specific fields - Only visible when engine is 'openai' */}
-          {currentEngine === 'openai' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="openai-api-key">OpenAI API Key</Label>
-                <Input
-                  id="openai-api-key"
-                  type="password"
-                  placeholder="sk-..."
-                  value={settings['openai.apiKey'] || ''}
-                  onChange={(e) =>
-                    updateSetting({ 'openai.apiKey': e.target.value })
-                  }
-                />
-              </div>
+        {/* OpenAI-specific fields - Only visible when engine is 'openai' */}
+        {currentEngine === 'openai' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="openai-api-key">OpenAI API Key</Label>
+              <Input
+                id="openai-api-key"
+                type="password"
+                placeholder="sk-..."
+                value={settings['openai.apiKey'] || ''}
+                onChange={(e) =>
+                  updateSetting({ 'openai.apiKey': e.target.value })
+                }
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="openai-model">OpenAI Model</Label>
-                <Input
-                  id="openai-model"
-                  type="text"
-                  placeholder="gpt-4.1-mini"
-                  value={settings['openai.model'] || ''}
-                  onChange={(e) =>
-                    updateSetting({ 'openai.model': e.target.value })
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="openai-model">OpenAI Model</Label>
+              <Input
+                id="openai-model"
+                type="text"
+                placeholder="gpt-4.1-mini"
+                value={settings['openai.model'] || ''}
+                onChange={(e) =>
+                  updateSetting({ 'openai.model': e.target.value })
+                }
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="openai-base-url">OpenAI Base URL</Label>
-                <Input
-                  id="openai-base-url"
-                  type="url"
-                  placeholder="https://api.openai.com/v1"
-                  value={settings['openai.baseUrl'] || ''}
-                  onChange={(e) =>
-                    updateSetting({ 'openai.baseUrl': e.target.value })
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="openai-base-url">OpenAI Base URL</Label>
+              <Input
+                id="openai-base-url"
+                type="url"
+                placeholder="https://api.openai.com/v1"
+                value={settings['openai.baseUrl'] || ''}
+                onChange={(e) =>
+                  updateSetting({ 'openai.baseUrl': e.target.value })
+                }
+              />
+            </div>
 
-              <TestConnectionButton settings={settings} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+            <TestConnectionButton settings={settings} />
+          </>
+        )}
+      </form>
     </div>
   )
 }
@@ -235,11 +225,7 @@ function TestConnectionButton({ settings }: { settings: Settings }) {
   }
 
   return (
-    <Button
-      variant="outline"
-      onClick={handleTest}
-      disabled={testing}
-    >
+    <Button variant="outline" onClick={handleTest} disabled={testing}>
       {testing ? 'Testing...' : 'Test Connection'}
     </Button>
   )
