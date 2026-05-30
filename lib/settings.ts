@@ -2,9 +2,12 @@ import { OptionalKeysOf } from 'type-fest'
 import { DefaultLLMPrompt } from './translate/openai'
 import { type ToLang } from './translate/lang'
 
+export type DisplayMode = 'bilingual' | 'translation-only'
+
 export interface Settings {
   to?: ToLang
   engine?: 'microsoft' | 'openai'
+  displayMode?: DisplayMode
 
   'openai.apiKey'?: string
   'openai.model'?: string
@@ -16,6 +19,7 @@ export function getDefaultSettings(): Pick<Settings, OptionalKeysOf<Settings>> {
   return {
     to: 'en',
     engine: 'microsoft',
+    displayMode: 'bilingual',
     'openai.baseUrl': 'https://api.openai.com/v1',
     'openai.prompt': DefaultLLMPrompt,
     'openai.model': 'gpt-4.1-mini',

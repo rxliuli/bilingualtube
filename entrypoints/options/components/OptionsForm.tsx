@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 
-import { getMergedSettings, getSyncSettings, setSyncSettings, Settings } from '@/lib/settings'
+import { DisplayMode, getMergedSettings, getSyncSettings, setSyncSettings, Settings } from '@/lib/settings'
 import { toast } from 'sonner'
 import { FaDiscord } from 'react-icons/fa'
 import { langs, ToLang } from '../../../lib/translate/lang'
@@ -121,6 +121,25 @@ export function OptionsForm() {
                       {name}
                     </SelectItem>
                   ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Subtitle Display - Always visible */}
+          <div className="space-y-2">
+            <Label htmlFor="displayMode">Subtitle Display</Label>
+            <Select
+              value={settings.displayMode ?? 'bilingual'}
+              onValueChange={(value) =>
+                updateSetting({ displayMode: value as DisplayMode })
+              }
+            >
+              <SelectTrigger id="displayMode">
+                <SelectValue placeholder="Select subtitle display" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bilingual">Original + Translation</SelectItem>
+                <SelectItem value="translation-only">Translation only</SelectItem>
               </SelectContent>
             </Select>
           </div>

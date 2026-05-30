@@ -230,10 +230,17 @@ function setupSubtitleUI() {
     }
 
     if (cue) {
-      // Check if it's a simplified/traditional Chinese conversion
+      const settings = await eventMessager.sendMessage('getSettings')
+      const displayMode = settings.displayMode ?? 'bilingual'
+      // Simplified/Traditional Chinese conversion is implicitly translation-only:
+      // same content, different characters, so bilingual display is meaningless.
       const isChineseConversion = await isChineseVariantConversion()
-      if (isChineseConversion && translationText) {
-        // Simplified/Traditional Chinese conversion: only show translated text, not bilingual
+      if (
+        translationText &&
+        (displayMode === 'translation-only' || isChineseConversion)
+      ) {
+        // Translation-only: hide the original line. Falls through to bilingual
+        // when no translation exists yet (e.g. still translating, or same lang).
         subtitleOverlay.update(translationText)
       } else {
         // Normal case: show original and translation (if available)
