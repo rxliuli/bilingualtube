@@ -124,6 +124,7 @@ export function normalizeLanguageCode(lang: string): string {
 
   // Handle Simplified Chinese variants
   if (
+    normalized === 'zh' ||
     normalized === 'zh-cn' ||
     normalized === 'zh-hans' ||
     normalized === 'zh-sg' ||

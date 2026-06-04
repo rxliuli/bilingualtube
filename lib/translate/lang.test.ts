@@ -3,6 +3,7 @@ import { normalizeLanguageCode } from './lang'
 
 describe('normalizeLanguageCode', () => {
   it('should normalize simplified Chinese variants to zh-Hans', () => {
+    expect(normalizeLanguageCode('zh')).eq('zh-Hans')
     expect(normalizeLanguageCode('zh-CN')).eq('zh-Hans')
     expect(normalizeLanguageCode('zh-cn')).eq('zh-Hans')
     expect(normalizeLanguageCode('zh-Hans')).eq('zh-Hans')
