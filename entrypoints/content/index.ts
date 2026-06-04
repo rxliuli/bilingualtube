@@ -96,6 +96,18 @@ function setupSubtitleInterception() {
       }
       // `tlang` marks a YouTube auto-translated track (see resolveSubtitleTrack).
       const tlang = searchParams.get('tlang')
+      if (tlang) {
+        // Re-fetch original subtitles without `tlang` to avoid double
+        // translation (e.g. ja→en→zh). The re-fetch is intercepted by
+        // Vista again and processed through the normal pipeline.
+        const originalUrl = new URL(c.req.url)
+        originalUrl.searchParams.delete('tlang')
+        console.log(
+          `[BilingualTube] Auto-translated track detected (lang=${rawLang}, tlang=${tlang}), re-fetching original subtitles.`,
+        )
+        fetch(originalUrl.toString())
+        return
+      }
       const kind = searchParams.get('kind')
       let data = convertYoutubeToStandardFormat(resp)
       const { lang, mode } = resolveSubtitleTrack({
