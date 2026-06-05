@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -19,43 +18,21 @@ import { langs, ToLang } from '../../../lib/translate/lang'
 import { testOpenAIConnection } from '@/lib/translate/openai'
 
 export function OptionsForm() {
-  const queryClient = useQueryClient()
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
-  // Load merged settings for display
-  const {
-    data: settings,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getMergedSettings,
-  })
-
-  // Save settings mutation
-  const saveMutation = useMutation({
-    mutationFn: setSyncSettings,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-    },
-    onError: (error) => {
-      toast.error('Failed to save settings')
-      console.error(error)
-    },
-  })
-
-  // Auto-save function - only save user settings, not defaults
-  const updateSetting = async (updates: Partial<Settings>) => {
-    const syncSettings = await getSyncSettings()
-    const newSettings = { ...syncSettings, ...updates }
-    saveMutation.mutate(newSettings)
+  if (!settings && !error) {
+    getMergedSettings().then(setSettings).catch(setError)
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-muted-foreground">Loading settings...</div>
-      </div>
-    )
+  const updateSetting = (updates: Partial<Settings>) => {
+    setSettings((prev) => (prev ? { ...prev, ...updates } : prev))
+    getSyncSettings().then((syncSettings) => {
+      setSyncSettings({ ...syncSettings, ...updates }).catch((error) => {
+        toast.error('Failed to save settings')
+        console.error(error)
+      })
+    })
   }
 
   if (error) {
@@ -68,7 +45,13 @@ export function OptionsForm() {
     )
   }
 
-  if (!settings) return null
+  if (!settings) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted-foreground">Loading settings...</div>
+      </div>
+    )
+  }
 
   const currentEngine = settings.engine ?? 'microsoft'
 
@@ -98,7 +81,7 @@ export function OptionsForm() {
         </a>
       </header>
 
-      <form className="grid gap-6">
+      <form className="grid gap-6" onSubmit={(e) => e.preventDefault()}>
         {/* Target Language - Always visible */}
         <div className="space-y-2">
           <Label htmlFor="to">Target Language</Label>
@@ -176,7 +159,7 @@ export function OptionsForm() {
               <Input
                 id="openai-model"
                 type="text"
-                placeholder="gpt-4.1-mini"
+                placeholder="gpt-4o-mini"
                 value={settings['openai.model'] || ''}
                 onChange={(e) =>
                   updateSetting({ 'openai.model': e.target.value })
@@ -226,7 +209,7 @@ function TestConnectionButton({ settings }: { settings: Settings }) {
   }
 
   return (
-    <Button variant="outline" onClick={handleTest} disabled={testing}>
+    <Button type="button" variant="outline" onClick={handleTest} disabled={testing}>
       {testing ? 'Testing...' : 'Test Connection'}
     </Button>
   )

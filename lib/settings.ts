@@ -22,7 +22,7 @@ export function getDefaultSettings(): Pick<Settings, OptionalKeysOf<Settings>> {
     displayMode: 'bilingual',
     'openai.baseUrl': 'https://api.openai.com/v1',
     'openai.prompt': DefaultLLMPrompt,
-    'openai.model': 'gpt-4.1-mini',
+    'openai.model': 'gpt-4o-mini',
   }
 }
 
