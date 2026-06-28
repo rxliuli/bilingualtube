@@ -35,39 +35,29 @@ const newModels = [
   'gpt-5-2025-08-07',
 ]
 
-export const DefaultLLMPrompt = `
-You are a professional native translator specializing in {{Target Language}}. Your task is to translate the provided text fluently into {{Target Language}}.
+export const DefaultLLMSystemPrompt = `
+You are a subtitle translator. You receive numbered lines and return their translations in {{Target Language}}, nothing else.
 
-## Translation Rules
+Rules:
+- Output ONLY translated lines in the format [N] translated text.
+- NEVER add notes, annotations, commentary, or parenthetical explanations such as （注：…）.
+- NEVER comment on the source text (e.g. "原文不完整", "此处保留", "根据上下文推测").
+- If a line is a sentence fragment, translate it as-is. Do NOT complete, merge, or rearrange lines.
+- If the text contains HTML tags, place them appropriately in the translation.
+- Keep proper nouns, code, and untranslatable content in their original form.
+- Input has {{Segment Count}} lines from [1] to [{{Segment Count}}]. Output MUST have exactly {{Segment Count}} lines with matching numbers.
+`.trim()
 
-1. Output ONLY the translated text with line numbers. Do not include any explanations or additional content.
-
-2. Each line starts with [N] where N is the line number, followed by the translation.
-
-3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency.
-
-4. For content that should not be translated (such as proper nouns, code, etc.), keep the original text.
-
-## Input/Output Format
-
-Input:
-[1] Hello world
-[2] How are you?
-[3] Goodbye
-
-Output:
-[1] 你好世界
-[2] 你好吗？
-[3] 再见
-
-## CRITICAL REQUIREMENT
-- Input has {{Segment Count}} numbered lines from [1] to [{{Segment Count}}]
-- Output MUST have exactly {{Segment Count}} lines, each starting with [1], [2], ... [{{Segment Count}}]
-- Every input line number MUST have a corresponding output line with the same number
-
+export const DefaultLLMUserPrompt = `
 Translate to {{Target Language}}:
 
 {{Text to Translate}}
+`.trim()
+
+export const DefaultLLMPrompt = `
+${DefaultLLMSystemPrompt}
+
+${DefaultLLMUserPrompt}
 `.trim()
 
 export interface OpenAIConfig {
@@ -85,6 +75,7 @@ export async function testOpenAIConnection(options: OpenAIConfig): Promise<void>
     throw new Error('Base URL is not set')
   }
   await sendOfCompletion(
+    'You are a translator.',
     'Translate to English: hello',
     options,
   )
@@ -104,10 +95,20 @@ export function openai(options: OpenAIConfig): Translator {
       const numberedInput = text
         .map((t, i) => `[${i + 1}] ${t}`)
         .join('\n')
-      const prompt = (options.prompt ?? DefaultLLMPrompt)
-        .replaceAll('{{Target Language}}', langs[to] ?? to)
-        .replaceAll('{{Segment Count}}', String(text.length))
-        .replaceAll('{{Text to Translate}}', numberedInput)
+      const langName = langs[to] ?? to
+      const replacePlaceholders = (tmpl: string) =>
+        tmpl
+          .replaceAll('{{Target Language}}', langName)
+          .replaceAll('{{Segment Count}}', String(text.length))
+          .replaceAll('{{Text to Translate}}', numberedInput)
+
+      const customPrompt = options.prompt
+      const systemPrompt = replacePlaceholders(
+        customPrompt ?? DefaultLLMSystemPrompt,
+      )
+      const userPrompt = replacePlaceholders(
+        customPrompt ? numberedInput : DefaultLLMUserPrompt,
+      )
 
       const maxRetries = 3
       let lastError: Error | null = null
@@ -118,9 +119,9 @@ export function openai(options: OpenAIConfig): Translator {
           options.baseUrl === 'https://api.openai.com/v1' &&
           newModels.includes(options.model ?? 'gpt-4.1-mini')
         ) {
-          r = await sendOfResponse(prompt, options)
+          r = await sendOfResponse(systemPrompt, userPrompt, options)
         } else {
-          r = await sendOfCompletion(prompt, options)
+          r = await sendOfCompletion(systemPrompt, userPrompt, options)
         }
         // Parse numbered output: [1] translation1\n[2] translation2\n...
         try {
@@ -164,7 +165,11 @@ function parseNumberedOutput(output: string, expectedCount: number): string[] {
   return results
 }
 
-async function sendOfResponse(text: string, options: OpenAIConfig) {
+async function sendOfResponse(
+  systemPrompt: string,
+  userPrompt: string,
+  options: OpenAIConfig,
+) {
   const r = await fetch(`${options.baseUrl}/responses`, {
     method: 'POST',
     headers: {
@@ -173,7 +178,8 @@ async function sendOfResponse(text: string, options: OpenAIConfig) {
     },
     body: JSON.stringify({
       model: options.model,
-      input: text,
+      instructions: systemPrompt,
+      input: userPrompt,
     }),
   })
   if (!r.ok) {
@@ -184,7 +190,11 @@ async function sendOfResponse(text: string, options: OpenAIConfig) {
   return data.output[0].content[0].text as string
 }
 
-async function sendOfCompletion(text: string, options: OpenAIConfig) {
+async function sendOfCompletion(
+  systemPrompt: string,
+  userPrompt: string,
+  options: OpenAIConfig,
+) {
   const r = await fetch(`${options.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -195,8 +205,12 @@ async function sendOfCompletion(text: string, options: OpenAIConfig) {
       model: options.model,
       messages: [
         {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
           role: 'user',
-          content: text,
+          content: userPrompt,
         },
       ],
     }),
