@@ -136,46 +136,12 @@ export function resolveSubtitleTrack(params: {
   return { lang, mode: 'raw' }
 }
 
-function findBestSplitPoint(
-  tokens: TimedToken[],
-  maxLength: number,
-  comma: RegExp,
-): number {
-  function innerFindBestSplitPoint(points: number[]): number {
-    let bestIndex = -1
-    let bestLength = 0
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i]
-      const len = Math.abs(
-        tokens.slice(0, p + 1).reduce((sum, t) => sum + t.text.length + 1, 0) -
-          maxLength,
-      )
-      if (len < bestLength || bestIndex === -1) {
-        bestLength = len
-        bestIndex = p
-      }
-    }
-    return bestIndex
-  }
-  // Prefer splitting at commas
-  const commaIndices = tokens
-    .map((t) => ({
-      isComma: comma.test(t.text),
-      index: tokens.indexOf(t),
-    }))
-    .filter((t) => t.isComma)
-    .map((t) => t.index)
-  if (commaIndices.length > 0) {
-    return innerFindBestSplitPoint(commaIndices)
-  }
-  // Otherwise find the point closest to maxLength
-  return innerFindBestSplitPoint(tokens.map((t, i) => i))
-}
-
-// Split subtitles into sentences for display, using heuristic algorithm for punctuation handling
 
 interface SentenceSplitRule {
   maxLength: number
+  // Force split when buffer exceeds this length even without a comma.
+  // CJK needs this because the punct model may miss commas in long runs.
+  hardMaxLength: number
   separator: string
   sentenceStartRegex: RegExp
   sentenceEndRegex: RegExp
@@ -186,6 +152,7 @@ interface SentenceSplitRule {
 function getDefaultSentenceSplitRule(): SentenceSplitRule {
   return {
     maxLength: 100,
+    hardMaxLength: Infinity,
     separator: ' ',
     sentenceStartRegex: /^(>>)/,
     sentenceEndRegex: /[.!?]$/,
@@ -202,9 +169,8 @@ function getCJKSentenceSplitRule(lang: string): SentenceSplitRule {
     ko: ['[음악]'],
   }
   return {
-    // CJK chars carry more info per char than Latin; 40 chars matches typical
-    // subtitle line length and reads as ~one screen of text.
     maxLength: 40,
+    hardMaxLength: 60,
     separator: '',
     sentenceStartRegex: /^(>>)/,
     sentenceEndRegex: /[。！？.!?]$/,
@@ -234,6 +200,24 @@ export function sentencesInSubtitles(
   const rule = getSentenceSplitRule(lang)
   const sentences: TimedToken[] = []
   let current: TimedToken[] = []
+  let lastCommaIndex = -1
+
+  function emitCurrent() {
+    if (current.length > 0) {
+      sentences.push(mergeTokens(current, rule.separator))
+      current = []
+    }
+    lastCommaIndex = -1
+  }
+
+  function splitAtLastComma() {
+    sentences.push(
+      mergeTokens(current.slice(0, lastCommaIndex + 1), rule.separator),
+    )
+    current = current.slice(lastCommaIndex + 1)
+    lastCommaIndex = -1
+  }
+
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
 
@@ -242,52 +226,17 @@ export function sentencesInSubtitles(
       current.length > 0 &&
       t.start - current[current.length - 1].end > TIME_GAP_THRESHOLD
     ) {
-      sentences.push(mergeTokens(current, rule.separator))
-      current = []
-    }
-
-    // If appending `t` would push `current` past maxLength, eagerly emit
-    // current first. This fires BEFORE the sentence-end branch, so even when
-    // `t` ends with `。`, we don't drag an already-comma-terminated clause
-    // into the same cue. Without this, a [..., '...感じで、'] buffer would get
-    // merged with the next 「…ですね。」 fragment into one 47-char cue even with
-    // maxLength=40.
-    if (current.length > 0) {
-      const projected = getCurrentLength(current) + t.text.length + 1
-      if (projected > rule.maxLength) {
-        const splitIndex = findBestSplitPoint(
-          current,
-          rule.maxLength,
-          rule.commaRegex,
-        )
-        if (splitIndex >= 0 && splitIndex < current.length - 1) {
-          sentences.push(
-            mergeTokens(current.slice(0, splitIndex + 1), rule.separator),
-          )
-          current = current.slice(splitIndex + 1)
-        } else {
-          sentences.push(mergeTokens(current, rule.separator))
-          current = []
-        }
-      }
+      emitCurrent()
     }
 
     // [Music] and [Applause] tags become their own sentences
     if (rule.specialTags.includes(t.text)) {
-      if (current.length > 0) {
-        // First collect the current sentence
-        sentences.push(mergeTokens(current, rule.separator))
-        current = []
-      }
+      emitCurrent()
       sentences.push(t)
       continue
     }
     if (rule.sentenceStartRegex.test(t.text)) {
-      if (current.length > 0) {
-        // First collect the current sentence
-        sentences.push(mergeTokens(current, rule.separator))
-        current = []
-      }
+      emitCurrent()
       if (rule.sentenceEndRegex.test(t.text)) {
         sentences.push(t)
         continue
@@ -298,35 +247,25 @@ export function sentencesInSubtitles(
     // Split on terminal punctuation
     if (rule.sentenceEndRegex.test(t.text)) {
       current.push(t)
-      sentences.push(mergeTokens(current, rule.separator))
-      current = []
+      emitCurrent()
       continue
     }
+
     current.push(t)
 
-    const wouldExceed =
-      getCurrentLength(current) + t.text.length + 1 > rule.maxLength
-    if (wouldExceed && current.length > 0) {
-      // Find the best split point in current
-      const splitIndex = findBestSplitPoint(
-        current,
-        rule.maxLength,
-        rule.commaRegex,
-      )
-      if (splitIndex !== -1) {
-        const toEmit = current.slice(0, splitIndex + 1)
-        const remaining = current.slice(splitIndex + 1)
-        sentences.push(mergeTokens(toEmit, rule.separator))
-        current = remaining
-      } else {
-        // Cannot split, submit directly
-        sentences.push(mergeTokens(current, rule.separator))
-        current = []
-      }
+    if (rule.commaRegex.test(t.text)) {
+      lastCommaIndex = current.length - 1
+    }
+
+    const currentLen = getCurrentLength(current)
+    if (currentLen > rule.maxLength && lastCommaIndex >= 0) {
+      splitAtLastComma()
+    } else if (currentLen > rule.hardMaxLength) {
+      emitCurrent()
     }
   }
   if (current.length > 0) {
-    sentences.push(mergeTokens(current, rule.separator))
+    emitCurrent()
   }
   return sentences
 }

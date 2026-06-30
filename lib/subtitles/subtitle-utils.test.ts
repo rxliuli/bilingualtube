@@ -281,13 +281,14 @@ describe('subtitle-utils', () => {
       ).default
       const r = sentencesInSubtitles(convertYoutubeToStandardFormat(data), 'en')
       expect(r[0]).toEqual({
-        text: 'The Apple Design Resources are really a collection of different materials',
-        end: 8.238,
+        text: 'The Apple Design Resources are really a collection of different materials that we provide to people for designing apps.',
+        end: 10.474,
         start: 4.234,
       } satisfies TimedToken)
     })
-    // Correctly handle sentence splitting, should break on commas or periods (and if too long?)
-    it('Should split sentences on punctuation', async () => {
+    // Sentences only split at punctuation (comma/period) when over maxLength,
+    // never at arbitrary word boundaries
+    it('Should not split mid-sentence when under maxLength', async () => {
       const data = (
         await import('./assets/timedtext-discover-the-apple-design-resources.json')
       ).default
@@ -299,26 +300,19 @@ describe('subtitle-utils', () => {
       )
       assert(cue)
       expect(cue.text).toEqual(
-        'So as designers who are making design tools for other designers,',
+        'So as designers who are making design tools for other designers, we know that the design resources have to be really well designed.',
       )
     })
-    // Should break sentences when encountering overly long subtitle segments
-    it('Should split long subtitle segments', async () => {
+    // Long sentences split at comma when exceeding maxLength
+    it('Should split long subtitle segments at comma', async () => {
       const data = (
         await import('./assets/timedtext-discover-the-apple-design-resources.json')
       ).default
       const r = sentencesInSubtitles(convertYoutubeToStandardFormat(data), 'en')
       const contents = r.map((it) => it.text)
-      expect(contents)
-        .contains(
-          'We created the Apple Design Resources in the hopes that someone',
-        )
-        .contain(
-          'who has an idea about how their app is supposed to work is able',
-        )
-        .contain(
-          'to quickly express that idea in a way that has a high degree of accuracy',
-        )
+      expect(contents).contain(
+        'We created the Apple Design Resources in the hopes that someone who has an idea about how their app is supposed to work is able to quickly express that idea in a way that has a high degree of accuracy to how it\'s ultimately going to look,',
+      )
     })
     // When encountering terminal punctuation like . ! ?, should force sentence break, unlike commas which continue merging
     it('Should split on terminal punctuation', async () => {
@@ -380,9 +374,9 @@ describe('subtitle-utils', () => {
 
       const targetIndex = r2.findLastIndex((t) => t.text.includes('share'))
       expect(r2[targetIndex]).toEqual({
-        start: 145.56, // Start time of "share Starlight" segment
-        end: 158.239, // End time trimmed to avoid overlap with next subtitle
-        text: "Let me know Hing on my fair share of missions, YOU'VE been on one Spike and that's my fair share,",
+        start: 145.56,
+        end: 159.239,
+        text: "Let me know Hing on my fair share of missions, YOU'VE been on one Spike and that's my fair share, STARLIGHT.",
       } satisfies TimedToken)
     })
     // Should handle [laughter] and [applause] tags correctly
@@ -501,6 +495,25 @@ describe('subtitle-utils', () => {
       expect(texts[2]).toBe(
         "so Princess Celestia, you'll never guess who's back.",
       )
+    })
+    // Regression: sentence fragments like "this evening." caused LLM translation
+    // to shift indices, producing wrong cached translations.
+    it('should not produce sentence fragments from maxLength splits', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-9Bn_Y5mVfJc.json'))
+          .default as GetTimedtextResp,
+      )
+      const r = sentencesInSubtitles(data, 'en')
+      // "this evening." was previously a fragment split from the sentence before it
+      const fragment = r.find((it) => it.text === 'this evening.')
+      expect(fragment).toBeUndefined()
+      // The full sentence should be kept together
+      const fullSentence = r.find((it) =>
+        it.text.includes(
+          'You can tackle a friendship lesson today and we can review your progress when I get back later this evening.',
+        ),
+      )
+      expect(fullSentence).toBeDefined()
     })
   })
   describe('Japanese subtitle merge', () => {
