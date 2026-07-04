@@ -19,23 +19,34 @@ const NUM_CLASSES = 5
 const ID_TO_PUNCT = ['', '。', '、', '？', '！'] as const
 
 export interface CjkPunctOptions {
-  /** Minimum softmax probability for a non-NONE class to be emitted. */
+  /** Minimum softmax probability for a comma to be emitted. */
   threshold?: number
+  /**
+   * Minimum probability for terminal punctuation (。？！). Lower than the
+   * comma threshold because a missed sentence boundary produces an over-long
+   * cue (the original bug), which is worse than an extra split.
+   */
+  terminalThreshold?: number
   /** Char window size for inference; should match training seq_len (256). */
   windowSize?: number
   /** Overlap (in chars) between adjacent windows so cross-window context is shared. */
   windowStride?: number
 }
 
+// Class ids 1/3/4 are 。？！; 2 is 、.
+const TERMINAL_CLASSES = new Set([1, 3, 4])
+
 export class CjkPunctModel {
   private session: ort.InferenceSession | null = null
   private vocab: Map<string, number> = new Map()
   private threshold: number
+  private terminalThreshold: number
   private windowSize: number
   private windowStride: number
 
   constructor(options: CjkPunctOptions = {}) {
     this.threshold = options.threshold ?? 0.5
+    this.terminalThreshold = options.terminalThreshold ?? 0.4
     this.windowSize = options.windowSize ?? 256
     this.windowStride = options.windowStride ?? 224
   }
@@ -114,9 +125,14 @@ export class CjkPunctModel {
             bestC = c
           }
         }
-        // Apply threshold for non-NONE classes
+        // Apply per-class threshold for non-NONE classes
         let cls = 0
-        if (bestC !== 0 && bestP >= this.threshold) cls = bestC
+        if (bestC !== 0) {
+          const th = TERMINAL_CLASSES.has(bestC)
+            ? this.terminalThreshold
+            : this.threshold
+          if (bestP >= th) cls = bestC
+        }
 
         // Prefer prediction from the window where this position is more central
         const centerDist = Math.abs(i - winLen / 2)
