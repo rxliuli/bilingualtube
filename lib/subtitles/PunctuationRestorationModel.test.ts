@@ -55,3 +55,35 @@ it('should restore punctuation correctly', async () => {
     .include('?')
     .include('Hey there. How are you doing today?')
 })
+
+// Regression: after the final window reached the end of the input, the
+// overlap rewind ran one extra round and re-emitted the last ~15 tokens.
+it('should not duplicate tail tokens across sliding windows', async () => {
+  const tokenizer = new BPETokenizer()
+  await tokenizer.load(
+    '/sherpa-onnx-online-punct-en-2024-08-06/bpe.vocab' satisfies PublicPath,
+  )
+  const model = new PunctuationRestorationModel(tokenizer)
+  await model.load(
+    '/sherpa-onnx-online-punct-en-2024-08-06/model.int8.onnx' satisfies PublicPath,
+  )
+  // Enough words to require several sliding windows (~180 BPE tokens each)
+  const words = Array.from(
+    { length: 600 },
+    (_, i) => ['the', 'quick', 'brown', 'fox', 'jumps', 'over'][i % 6],
+  )
+  const tokens = words.map(
+    (word, index) =>
+      ({
+        text: word,
+        start: index * 0.5,
+        end: index * 0.5 + 0.5,
+      } as TimedToken),
+  )
+  let r
+  for await (const processed of model.annotate(tokens)) {
+    r = processed
+  }
+  expect(r!.length).toBe(tokens.length)
+  expect(r!.map((t) => t.text)).toEqual(words)
+})

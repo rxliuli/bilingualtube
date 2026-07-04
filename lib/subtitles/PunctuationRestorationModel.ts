@@ -227,13 +227,19 @@ export class PunctuationRestorationModel {
         }
       }
 
+      yield [...results]
+
+      // The final window reached the end of the input; stop before the
+      // overlap rewind below re-processes and re-emits the tail tokens.
+      if (wordEnd >= tokens.length) {
+        break
+      }
+
       // Move window
       wordStart = wordEnd - overlapWords * 2
       if (wordStart <= wordEnd - windowTokens.length) {
         wordStart = wordEnd
       }
-
-      yield [...results]
 
       await new Promise((resolve) => setTimeout(resolve, 0))
     }

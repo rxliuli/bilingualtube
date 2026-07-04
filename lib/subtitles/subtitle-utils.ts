@@ -47,13 +47,25 @@ const CJK_PUNCT_RE = /[。？！，、.,?!]/
 const CJK_PUNCT_RATIO_THRESHOLD = 0.05
 
 /**
+ * Longest acceptable run of consecutive word tokens without any punctuation.
+ * Fully punctuated ASR tracks top out around 28 words between punctuation
+ * marks; partially punctuated ones (e.g. interviews where only the anchor's
+ * speech is punctuated) contain runs of 99+ words, so 50 separates them
+ * cleanly.
+ */
+const MAX_UNPUNCTUATED_RUN = 50
+
+/**
  * Determine if subtitles are missing punctuation.
  *
- * For English (and other Latin scripts), any single non-number `[,?!]` is
- * enough to consider the track punctuated. For CJK languages, the check is
- * ratio-based: at least `CJK_PUNCT_RATIO_THRESHOLD` of cues must contain
- * sentence-ending punctuation. This avoids stray `[音楽]?` etc. flipping a
- * whole video into "has punctuation" mode.
+ * For English (and other Latin scripts), a track is considered missing
+ * punctuation when it has no non-number `[,?!]` at all, or when it is only
+ * partially punctuated: some ASR tracks (typically interviews) punctuate the
+ * anchor's speech but leave guest segments as runs of 50+ words with no
+ * punctuation. For CJK languages, the check is ratio-based: at least
+ * `CJK_PUNCT_RATIO_THRESHOLD` of cues must contain sentence-ending
+ * punctuation. This avoids stray `[音楽]?` etc. flipping a whole video into
+ * "has punctuation" mode.
  */
 export function hasMissingPunctuation(
   tokens: TimedToken[],
@@ -66,14 +78,22 @@ export function hasMissingPunctuation(
     return withPunct / tokens.length < CJK_PUNCT_RATIO_THRESHOLD
   }
 
+  let hasAnyPunct = false
+  let run = 0
   for (const t of tokens) {
-    // Strip number-group commas (e.g. "20,000") before checking
-    const text = t.text.trim().replace(/\d,\d/g, '')
+    // Strip number-group commas ("20,000") and decimal points ("3.5")
+    // before checking
+    const text = t.text.trim().replace(/\d[.,]\d/g, '')
     if (/[,?!]/.test(text)) {
-      return false
+      hasAnyPunct = true
+    }
+    if (/[.,!?;]/.test(text)) {
+      run = 0
+    } else if (++run >= MAX_UNPUNCTUATED_RUN) {
+      return true
     }
   }
-  return true
+  return !hasAnyPunct
 }
 
 /**
@@ -152,7 +172,12 @@ interface SentenceSplitRule {
 function getDefaultSentenceSplitRule(): SentenceSplitRule {
   return {
     maxLength: 100,
-    hardMaxLength: Infinity,
+    // Safety net for partially-punctuated ASR tracks (e.g. interviews where
+    // guest speech has no punctuation at all): force a word-boundary split
+    // rather than letting one cue grow to hundreds of characters. Must stay
+    // above the longest legitimate comma-less sentence in real tracks
+    // (~240 chars, see the Apple Design Resources fixture).
+    hardMaxLength: 250,
     separator: ' ',
     sentenceStartRegex: /^(>>)/,
     sentenceEndRegex: /[.!?]$/,

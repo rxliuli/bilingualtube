@@ -52,6 +52,27 @@ describe('subtitle-utils', () => {
       )
       expect(hasMissingPunctuation(data)).true
     })
+    // Interview-style ASR tracks punctuate the anchor's speech but leave
+    // guest segments as long runs (99 and 180 words in these fixtures)
+    // without any punctuation.
+    it('should detect partially punctuated tracks with long unpunctuated runs', async () => {
+      const data1 = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-bSKc5Sf63Ic.json'))
+          .default as GetTimedtextResp,
+      )
+      const data2 = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-vbScf4PzKRI.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data1)).true
+      expect(hasMissingPunctuation(data2)).true
+    })
+    it('should not flag long fully-punctuated tracks', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext.json')).default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).false
+    })
   })
   describe('sentencesInSubtitles', () => {
     it('Should compile subtitle merge correctly', async () => {
@@ -376,7 +397,7 @@ describe('subtitle-utils', () => {
       expect(r2[targetIndex]).toEqual({
         start: 145.56,
         end: 159.239,
-        text: "Let me know Hing on my fair share of missions, YOU'VE been on one Spike and that's my fair share, STARLIGHT.",
+        text: "Let me know Hing on my fair share of missions, you've been on one Spike and that's my fair share, Starlight.",
       } satisfies TimedToken)
     })
     // Should handle [laughter] and [applause] tags correctly
@@ -394,7 +415,7 @@ describe('subtitle-utils', () => {
       expect(contents)
         .contain('Got the music in,')
         .contains('[Applause]')
-        .contain('you, you did it FLUTTER shot.')
+        .contain('you, you did it Flutter Shot.')
     })
     // Should handle multiple consecutive >> started subtitles correctly
     it('Should handle multiple consecutive >> started subtitles correctly', async () => {
@@ -514,6 +535,49 @@ describe('subtitle-utils', () => {
         ),
       )
       expect(fullSentence).toBeDefined()
+    })
+    // Regression: interview-style ASR tracks can be only partially punctuated —
+    // the anchor's speech is punctuated but guest segments have none at all
+    // (runs of 88 and 180 words in this fixture). Without a finite
+    // hardMaxLength those runs collapsed into single 416- and 990-char cues.
+    // https://www.youtube.com/watch?v=bSKc5Sf63Ic
+    it('should force-split unpunctuated runs in partially-punctuated tracks', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-bSKc5Sf63Ic.json'))
+          .default as GetTimedtextResp,
+      )
+      const r = sentencesInSubtitles(data, 'en')
+      const longest = r.reduce((a, b) => (b.text.length > a.text.length ? b : a))
+      // hardMaxLength (250) plus the word that pushed the buffer over it
+      expect(longest.text.length).toBeLessThanOrEqual(270)
+    })
+    // Full pipeline for a partially punctuated track: the model punctuates
+    // the bare runs, existing punctuation and casing are kept verbatim, and
+    // nothing gets doubled ("2026..") or duplicated by the sliding window.
+    // https://www.youtube.com/watch?v=bSKc5Sf63Ic
+    it('should punctuate bare runs while preserving existing punctuation', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-bSKc5Sf63Ic.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data)).true
+      let r1
+      for await (const processed of restorePunctuation(data)) {
+        r1 = processed
+      }
+      // Sliding-window overlap must not re-emit tail tokens
+      expect(r1!.length).eq(data.length)
+      const full = r1!.map((t) => t.text).join(' ')
+      // Already-punctuated region kept verbatim
+      expect(full).contain('India takes the helm of bricks in 2026.')
+      // No doubled punctuation anywhere
+      expect(full).not.match(/[.,!?]{2}/)
+      // The 88-word bare run got sentence punctuation from the model
+      const r2 = sentencesInSubtitles(r1!, 'en')
+      const longest = r2.reduce((a, b) =>
+        b.text.length > a.text.length ? b : a,
+      )
+      expect(longest.text.length).toBeLessThanOrEqual(270)
     })
   })
   describe('Japanese subtitle merge', () => {
