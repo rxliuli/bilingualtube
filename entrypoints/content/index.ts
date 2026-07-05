@@ -130,6 +130,15 @@ function setupSubtitleInterception() {
           console.log(
             `[BilingualTube] Auto-generated subtitles detected, using ${mode}`,
           )
+          // Show raw cues immediately while the model loads (hardMaxLength
+          // caps unpunctuated runs); the stream below progressively replaces
+          // them with punctuation-restored text.
+          store.setSubtitle({
+            lang,
+            text: resp,
+            cues: sentencesInSubtitles(data, lang),
+          })
+          triggerTranslation(store.currentTime)
           const options = await eventMessager.sendMessage(
             'getPunctuationOptions',
           )
@@ -139,19 +148,27 @@ function setupSubtitleInterception() {
             mode === 'sherpa-en'
               ? restorePunctuation(data, options)
               : restorePunctuationJa(data, options)
-          let lastCuesLength = 0
           for await (const processed of stream) {
             if (signal.aborted) {
               console.log('[BilingualTube] Punctuation restoration aborted.')
               throw new Error('Punctuation restoration aborted.')
             }
-            const cues = sentencesInSubtitles(processed, lang)
+            // The stream yields a prefix of the track; append the raw tail so
+            // cues beyond the restoration frontier never disappear from view.
+            const combined =
+              processed.length < data.length
+                ? processed.concat(data.slice(processed.length))
+                : processed
+            const cues = sentencesInSubtitles(combined, lang)
 
-            // Preserve existing translations for cues that haven't changed
-            const existingCues = store.subtitle?.cues || []
-            const mergedCues = cues.map((cue, i) => {
-              const existing = existingCues[i]
-              // If the cue text matches and has a translation, preserve it
+            // Preserve existing translations for cues that haven't changed.
+            // Match by start time, not index: restoration shifts cue counts
+            // in the prefix, which would otherwise misalign every tail cue.
+            const existingByStart = new Map(
+              (store.subtitle?.cues || []).map((c) => [c.start, c]),
+            )
+            const mergedCues = cues.map((cue) => {
+              const existing = existingByStart.get(cue.start)
               if (
                 existing &&
                 existing.text === cue.text &&
@@ -168,14 +185,10 @@ function setupSubtitleInterception() {
               cues: mergedCues,
             })
 
-            if (
-              cues.length > lastCuesLength &&
-              store.currentTime >= cues[lastCuesLength].start &&
-              store.currentTime <= cues[cues.length - 1].end
-            ) {
-              triggerTranslation(store.currentTime)
-            }
-            lastCuesLength = cues.length
+            // Cheap when nothing changed: only visible untranslated cues are
+            // fetched, so this re-translates the cue at the playhead only if
+            // restoration just rewrote it.
+            triggerTranslation(store.currentTime)
           }
           console.log('[BilingualTube] Auto-generated subtitles processed.')
         } catch (error) {
@@ -377,19 +390,19 @@ async function triggerTranslation(currentTime: number) {
     return
   }
 
-  // Check if source and target languages are the same
-  if (await isSameLanguage()) {
-    // console.log(
-    //   '[BilingualTube] Source and target languages are the same, skipping translation',
-    // )
-    return
-  }
-
-  const cuesToTranslate = getCuesToTranslate(cues, currentTime)
-  if (cuesToTranslate.length === 0) return
-
+  // Set the guard before the first await: concurrent callers (stream yields,
+  // timeupdate) could otherwise both pass the check above and translate the
+  // same batch twice.
   isTranslating = true
   try {
+    // Check if source and target languages are the same
+    if (await isSameLanguage()) {
+      return
+    }
+
+    const cuesToTranslate = getCuesToTranslate(cues, currentTime)
+    if (cuesToTranslate.length === 0) return
+
     console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
     const texts = cuesToTranslate.map((cue) => cue.text)
     const signal = store.getSignal()

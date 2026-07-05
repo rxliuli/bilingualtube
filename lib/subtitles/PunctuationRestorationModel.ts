@@ -47,6 +47,10 @@ export class PunctuationRestorationModel {
     ort.env.wasm.wasmPaths = {
       wasm: wasmUrl,
     }
+    // Content scripts are never crossOriginIsolated, and the page CSP (e.g.
+    // YouTube's) can block the blob: workers the threaded runtime tries to
+    // spawn before falling back. Pin to 1 thread to skip that slow path.
+    ort.env.wasm.numThreads = 1
     ort.env.logLevel = 'error'
     this.session = await ort.InferenceSession.create(modelPath)
   }

@@ -45,18 +45,65 @@ interface PunctuationOptions {
 }
 
 async function createModel(options?: PunctuationOptions) {
+  const t0 = performance.now()
   const tokenizer = new BPETokenizer()
   await tokenizer.load(
     options?.sherpaVocabPath ??
       ('/sherpa-onnx-online-punct-en-2024-08-06/bpe.vocab' satisfies PublicPath),
   )
+  const t1 = performance.now()
   const model = new PunctuationRestorationModel(tokenizer)
   await model.load(
     options?.sherpaModelPath ??
       ('/sherpa-onnx-online-punct-en-2024-08-06/model.int8.onnx' satisfies PublicPath),
     options?.wasmUrl,
   )
+  console.log(
+    `[BilingualTube] sherpa-en model loaded: tokenizer ${(t1 - t0).toFixed(0)}ms, session ${(performance.now() - t1).toFixed(0)}ms`,
+  )
   return model
+}
+
+// Loaded sessions are cached for the lifetime of the page: WASM compile +
+// ONNX session init costs seconds on a busy YouTube tab and would otherwise
+// be paid again for every video in the same SPA session.
+let sherpaModelPromise: Promise<PunctuationRestorationModel> | null = null
+let cjkModelPromise: Promise<CjkPunctModel> | null = null
+
+function getSherpaModel(options?: PunctuationOptions) {
+  if (!sherpaModelPromise) {
+    sherpaModelPromise = createModel(options)
+    // Clear on failure so the next video retries instead of caching the error.
+    sherpaModelPromise.catch(() => {
+      sherpaModelPromise = null
+    })
+  }
+  return sherpaModelPromise
+}
+
+async function createCjkModel(options: PunctuationOptions) {
+  const t0 = performance.now()
+  const model = new CjkPunctModel()
+  await model.load(
+    options.cjkPunctModelPath ??
+      ('/cjk-punct-ja/model.int8.onnx' satisfies PublicPath),
+    options.cjkPunctVocabPath ?? ('/cjk-punct-ja/vocab.json' satisfies PublicPath),
+    options.wasmUrl,
+  )
+  console.log(
+    `[BilingualTube] cjk-punct-ja model loaded in ${(performance.now() - t0).toFixed(0)}ms`,
+  )
+  return model
+}
+
+function getCjkModel(options: PunctuationOptions) {
+  if (!cjkModelPromise) {
+    cjkModelPromise = createCjkModel(options)
+    cjkModelPromise.catch(() => {
+      cjkModelPromise = null
+    })
+  }
+  return cjkModelPromise
 }
 
 /**
@@ -66,7 +113,7 @@ export async function* restorePunctuation(
   tokens: TimedToken[],
   options?: PunctuationOptions,
 ): AsyncGenerator<TimedToken[], TimedToken[]> {
-  const model = await createModel(options)
+  const model = await getSherpaModel(options)
 
   // Strip existing trailing punctuation before feeding the model so it never
   // doubles up (e.g. "2026." + predicted "." -> "2026.."). The original text
@@ -95,14 +142,7 @@ export async function* restorePunctuationJa(
   tokens: TimedToken[],
   options: PunctuationOptions,
 ): AsyncGenerator<TimedToken[], TimedToken[]> {
-  const model = new CjkPunctModel()
-  await model.load(
-    options.cjkPunctModelPath ??
-      ('/cjk-punct-ja/model.int8.onnx' satisfies PublicPath),
-    options.cjkPunctVocabPath ??
-      ('/cjk-punct-ja/vocab.json' satisfies PublicPath),
-    options.wasmUrl,
-  )
+  const model = await getCjkModel(options)
 
   let result: TimedToken[] = []
   for await (const annotated of model.annotate(tokens)) {
