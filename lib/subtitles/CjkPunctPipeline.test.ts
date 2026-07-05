@@ -1,6 +1,8 @@
+import * as ort from 'onnxruntime-web/wasm'
 import { expect, it } from 'vitest'
 import { PublicPath } from 'wxt/browser'
 import { CjkPunctModel } from './CjkPunctModel'
+import { getCjkModel } from './restorePunctuationInSubtitles'
 import {
   convertYoutubeToStandardFormat,
   sentencesInSubtitles,
@@ -23,6 +25,11 @@ it('full pipeline on real ja ASR cooking video', async () => {
 
   const model = new CjkPunctModel()
   await model.load(MODEL_PATH, VOCAB_PATH)
+
+  // Regression: the threaded WASM runtime retries blob workers that page
+  // CSPs (e.g. YouTube's) block, inflating session init from ~200ms to ~9s.
+  // load() must pin single-threaded mode.
+  expect(ort.env.wasm.numThreads, 'ort numThreads').toBe(1)
 
   let annotated = tokens
   for await (const batch of model.annotate(tokens)) {
@@ -83,3 +90,21 @@ it('full pipeline on real ja ASR cooking video', async () => {
     `tiny-cue ratio: ${tooShort.length} of ${cues.length}`,
   ).toBeLessThan(0.2)
 }, 120000)
+
+// Regression: sessions were re-created per video, paying WASM compile +
+// session init again on every video in the same tab.
+it('caches the model session across videos', async () => {
+  const options = {
+    wasmUrl: '',
+    sherpaModelPath: '',
+    sherpaVocabPath: '',
+    cjkPunctModelPath: MODEL_PATH,
+    cjkPunctVocabPath: VOCAB_PATH,
+  }
+  const first = getCjkModel(options)
+  const second = getCjkModel(options)
+  expect(second, 'second video must reuse the same session promise').toBe(
+    first,
+  )
+  await first
+}, 60000)

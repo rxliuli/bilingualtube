@@ -19,6 +19,8 @@ import {
   restorePunctuation,
   restorePunctuationJa,
 } from '@/lib/subtitles/restorePunctuationInSubtitles'
+import { mergeRestorationUpdate } from '@/lib/subtitles/restorationMerge'
+import { skipWhileRunning } from '@/lib/async-utils'
 import { mirrorNativeCaptionStyle } from './subtitleStyleMirror'
 
 // Header to identify internal extension requests
@@ -153,31 +155,12 @@ function setupSubtitleInterception() {
               console.log('[BilingualTube] Punctuation restoration aborted.')
               throw new Error('Punctuation restoration aborted.')
             }
-            // The stream yields a prefix of the track; append the raw tail so
-            // cues beyond the restoration frontier never disappear from view.
-            const combined =
-              processed.length < data.length
-                ? processed.concat(data.slice(processed.length))
-                : processed
-            const cues = sentencesInSubtitles(combined, lang)
-
-            // Preserve existing translations for cues that haven't changed.
-            // Match by start time, not index: restoration shifts cue counts
-            // in the prefix, which would otherwise misalign every tail cue.
-            const existingByStart = new Map(
-              (store.subtitle?.cues || []).map((c) => [c.start, c]),
+            const mergedCues = mergeRestorationUpdate(
+              processed,
+              data,
+              store.subtitle?.cues || [],
+              lang,
             )
-            const mergedCues = cues.map((cue) => {
-              const existing = existingByStart.get(cue.start)
-              if (
-                existing &&
-                existing.text === cue.text &&
-                existing.translated
-              ) {
-                return { ...cue, translated: existing.translated }
-              }
-              return cue
-            })
 
             store.setSubtitle({
               lang,
@@ -338,9 +321,6 @@ function isLive() {
   return document.querySelector('#movie_player .ytp-live') !== null
 }
 
-// Translation related
-let isTranslating = false
-
 /**
  * Check if source and target languages are the same (no translation needed)
  * Uses BCP 47 standard for language code comparison
@@ -382,27 +362,23 @@ async function isChineseVariantConversion(): Promise<boolean> {
   )
 }
 
-async function triggerTranslation(currentTime: number) {
-  if (isTranslating) return
-
+// skipWhileRunning drops calls arriving while a translation batch is in
+// flight (stream yields and timeupdate can fire in the same tick).
+const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
   const cues = store.subtitle?.cues ?? []
   if (!shouldTriggerTranslation(cues, currentTime)) {
     return
   }
 
-  // Set the guard before the first await: concurrent callers (stream yields,
-  // timeupdate) could otherwise both pass the check above and translate the
-  // same batch twice.
-  isTranslating = true
+  // Check if source and target languages are the same
+  if (await isSameLanguage()) {
+    return
+  }
+
+  const cuesToTranslate = getCuesToTranslate(cues, currentTime)
+  if (cuesToTranslate.length === 0) return
+
   try {
-    // Check if source and target languages are the same
-    if (await isSameLanguage()) {
-      return
-    }
-
-    const cuesToTranslate = getCuesToTranslate(cues, currentTime)
-    if (cuesToTranslate.length === 0) return
-
     console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
     const texts = cuesToTranslate.map((cue) => cue.text)
     const signal = store.getSignal()
@@ -427,10 +403,8 @@ async function triggerTranslation(currentTime: number) {
         error instanceof Error ? error.message : String(error)
       }`,
     )
-  } finally {
-    isTranslating = false
   }
-}
+})
 
 function setupVideoProgressListener() {
   const moviePlayer = document.querySelector('#movie_player')

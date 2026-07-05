@@ -67,6 +67,23 @@ describe('subtitle-utils', () => {
       expect(hasMissingPunctuation(data1)).true
       expect(hasMissingPunctuation(data2)).true
     })
+    // Podcast track that is 12% punctuated overall but contains 8 runs of
+    // 50-105 unpunctuated words (casual guest speech). Must route through
+    // sherpa-en so those runs don't collapse into giant cues.
+    it('should route partially punctuated podcast ASR through sherpa-en', async () => {
+      const data = convertYoutubeToStandardFormat(
+        (await import('./assets/timedtext-JMNIQDLrVp0.json'))
+          .default as GetTimedtextResp,
+      )
+      expect(hasMissingPunctuation(data, 'en')).true
+      const track = resolveSubtitleTrack({
+        rawLang: 'en',
+        tlang: null,
+        kind: 'asr',
+        data,
+      })
+      expect(track).toEqual({ lang: 'en', mode: 'sherpa-en' })
+    })
     it('should not flag long fully-punctuated tracks', async () => {
       const data = convertYoutubeToStandardFormat(
         (await import('./assets/timedtext.json')).default as GetTimedtextResp,

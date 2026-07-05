@@ -70,7 +70,7 @@ async function createModel(options?: PunctuationOptions) {
 let sherpaModelPromise: Promise<PunctuationRestorationModel> | null = null
 let cjkModelPromise: Promise<CjkPunctModel> | null = null
 
-function getSherpaModel(options?: PunctuationOptions) {
+export function getSherpaModel(options?: PunctuationOptions) {
   if (!sherpaModelPromise) {
     sherpaModelPromise = createModel(options)
     // Clear on failure so the next video retries instead of caching the error.
@@ -96,7 +96,7 @@ async function createCjkModel(options: PunctuationOptions) {
   return model
 }
 
-function getCjkModel(options: PunctuationOptions) {
+export function getCjkModel(options: PunctuationOptions) {
   if (!cjkModelPromise) {
     cjkModelPromise = createCjkModel(options)
     cjkModelPromise.catch(() => {
