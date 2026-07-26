@@ -1,39 +1,6 @@
 import { langs, ToLang } from './lang'
 import { Translator } from './types'
-
-const newModels = [
-  'gpt-5-nano',
-  'gpt-5',
-  'gpt-5-mini-2025-08-07',
-  'gpt-5-mini',
-  'gpt-5-nano-2025-08-07',
-  'o1-2024-12-17',
-  'o1',
-  'o3-mini',
-  'o3-mini-2025-01-31',
-  'o1-pro-2025-03-19',
-  'o1-pro',
-  'o3-2025-04-16',
-  'o4-mini-2025-04-16',
-  'o3',
-  'o4-mini',
-  'gpt-4.1-2025-04-14',
-  'gpt-4.1',
-  'gpt-4.1-mini-2025-04-14',
-  'gpt-4.1-mini',
-  'gpt-4.1-nano-2025-04-14',
-  'gpt-4.1-nano',
-  'o3-pro',
-  'gpt-4o-realtime-preview-2025-06-03',
-  'gpt-4o-audio-preview-2025-06-03',
-  'o3-pro-2025-06-10',
-  'o4-mini-deep-research',
-  'o3-deep-research',
-  'o3-deep-research-2025-06-26',
-  'o4-mini-deep-research-2025-06-26',
-  'gpt-5-chat-latest',
-  'gpt-5-2025-08-07',
-]
+import { applyRequestInterceptors, type OpenAIRequest } from './interceptors'
 
 export const DefaultLLMSystemPrompt = `
 You are a subtitle translator. You receive numbered lines and return their translations in {{Target Language}}, nothing else.
@@ -90,6 +57,9 @@ export function openai(options: OpenAIConfig): Translator {
       if (!options.apiKey) {
         throw new Error('OpenAI API key is not set')
       }
+      if (!options.baseUrl) {
+        throw new Error('OpenAI base URL is not set')
+      }
       // Format input with line numbers: [1] text1\n[2] text2\n...
       const numberedInput = text
         .map((t, i) => `[${i + 1}] ${t}`)
@@ -113,15 +83,7 @@ export function openai(options: OpenAIConfig): Translator {
       let lastError: Error | null = null
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
-        let r: string
-        if (
-          options.baseUrl === 'https://api.openai.com/v1' &&
-          newModels.includes(options.model ?? 'gpt-4.1-mini')
-        ) {
-          r = await sendOfResponse(systemPrompt, userPrompt, options)
-        } else {
-          r = await sendOfCompletion(systemPrompt, userPrompt, options)
-        }
+        const r = await sendOfCompletion(systemPrompt, userPrompt, options)
         // Parse numbered output: [1] translation1\n[2] translation2\n...
         try {
           const results = parseNumberedOutput(r, text.length)
@@ -164,29 +126,8 @@ function parseNumberedOutput(output: string, expectedCount: number): string[] {
   return results
 }
 
-async function sendOfResponse(
-  systemPrompt: string,
-  userPrompt: string,
-  options: OpenAIConfig,
-) {
-  const r = await fetch(`${options.baseUrl}/responses`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${options.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: options.model,
-      instructions: systemPrompt,
-      input: userPrompt,
-    }),
-  })
-  if (!r.ok) {
-    const body = await r.text()
-    throw new Error(`${r.status} ${body}`.trim())
-  }
-  const data = await r.json()
-  return data.output[0].content[0].text as string
+function chatCompletionsUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, '') + '/chat/completions'
 }
 
 async function sendOfCompletion(
@@ -194,13 +135,14 @@ async function sendOfCompletion(
   userPrompt: string,
   options: OpenAIConfig,
 ) {
-  const r = await fetch(`${options.baseUrl}/chat/completions`, {
-    method: 'POST',
+  const req: OpenAIRequest = {
+    endpoint: chatCompletionsUrl(options.baseUrl!),
+    model: options.model ?? '',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${options.apiKey}`,
     },
-    body: JSON.stringify({
+    body: {
       model: options.model,
       messages: [
         {
@@ -212,7 +154,14 @@ async function sendOfCompletion(
           content: userPrompt,
         },
       ],
-    }),
+    },
+  }
+  applyRequestInterceptors(req)
+
+  const r = await fetch(req.endpoint, {
+    method: 'POST',
+    headers: req.headers,
+    body: JSON.stringify(req.body),
   })
   if (!r.ok) {
     const body = await r.text()
