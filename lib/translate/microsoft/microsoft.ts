@@ -1,238 +1,132 @@
-// copy from https://www.npmjs.com/package/@lmk123/free-microsoft-translator
-/**
- * Authentication headers configuration
- * Used for private subscription keys or custom tokens
- */
-export interface AuthenticationHeaders {
-  /** Azure subscription key */
-  'Ocp-Apim-Subscription-Key'?: string
-  /** JWT token */
-  Authorization?: string
-}
-
-/**
- * Detected language information
- */
-export interface DetectedLanguage {
-  /** Language code */
-  language: string
-  /** Confidence score (0-1) */
-  score: number
-}
-
-/**
- * Microsoft Translator API optional parameters
- * Reference: https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate#optional-parameters
- */
-export interface MicrosoftTranslateOptions {
-  /** Text type: 'plain' (plain text) or 'html' (HTML text), default 'plain' */
-  textType?: 'plain' | 'html'
-  /** Category (domain), default 'general' */
-  category?: string
-  /** Profanity handling method */
-  profanityAction?: 'NoAction' | 'Marked' | 'Deleted'
-  /** Profanity marker */
-  profanityMarker?: 'Asterisk' | 'Tag'
-  /** Include alignment information */
-  includeAlignment?: boolean
-  /** Include sentence length */
-  includeSentenceLength?: boolean
-  /** Suggested source language (to improve auto-detection accuracy) */
-  suggestedFrom?: string
-  /** Source script */
-  fromScript?: string
-  /** Target script */
-  toScript?: string
-  /** Allow fallback */
-  allowFallback?: boolean
-}
-
-/**
- * Single translation result
- */
-export interface Translation {
-  /** Translated text */
-  text: string
-  /** Target language code */
-  to: string
-}
-
-/**
- * Single text translation result
- */
-export interface TextTranslationResult {
-  /** Detected source language (only present for auto-detection) */
-  detectedLanguage?: DetectedLanguage
-  /** Translation results list (can translate to multiple target languages) */
-  translations: Translation[]
-}
-
-/**
- * Translation result (array form)
- */
-export type TranslationResult = TextTranslationResult[]
-
-/**
- * Translation options interface
- */
-export interface TranslateOptions {
-  /** Custom User-Agent */
-  userAgent?: string
-  /** Source language code (undefined or 'auto-detect' means auto-detect) */
-  from?: string | null
-  /** Custom authentication headers (for paid service) */
-  authenticationHeaders?: AuthenticationHeaders
-  /** Microsoft Translator API optional parameters */
-  translateOptions?: MicrosoftTranslateOptions
-}
-
-const AUTH_URL = 'https://edge.microsoft.com/translate/auth'
-const TRANSLATE_API_URL = 'https://api.cognitive.microsofttranslator.com/translate'
-const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.35'
-
-interface TokenInfo {
+// Microsoft retired the legacy Edge translation pipeline
+// (edge.microsoft.com/translate/auth) on 2026-07-30, so this now goes through
+// the Bing web translator: scrape a session from the translator page, then
+// call ttranslatev3. The token is valid for one hour.
+interface BingSession {
+  ig: string
+  iid: string
+  key: number
   token: string
-  tokenExpiresAt: number
+  expires: number
 }
 
-let cachedToken: TokenInfo | undefined
-let tokenPromise: Promise<TokenInfo> | undefined
+let sessionCache: BingSession | null = null
+let sessionInflight: Promise<BingSession> | null = null
 
-/**
- * Get authentication token
- * @param userAgent - Custom User-Agent
- * @returns Token information
- */
-async function getAuthToken(userAgent?: string): Promise<TokenInfo> {
-  try {
-    const response = await fetch(AUTH_URL, {
-      headers: {
-        'User-Agent': userAgent || DEFAULT_USER_AGENT,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch auth token: ${response.status} ${response.statusText}`)
-    }
-
-    const tokenString = await response.text()
-
-    // Parse JWT token payload
-    const payload = JSON.parse(atob(tokenString.split('.')[1]))
-
-    cachedToken = {
-      token: tokenString,
-      // Token valid for 10 minutes
-      tokenExpiresAt: payload.exp * 1000,
-    }
-
-    return cachedToken
-  } catch (error) {
-    console.error('Failed to get authentication token')
-    throw error
+async function getBingSession(): Promise<BingSession> {
+  if (sessionCache && Date.now() < sessionCache.expires) {
+    return sessionCache
   }
-}
-
-/**
- * Check if token is expired or about to expire (within 1 minute)
- * @returns Whether token needs to be refreshed
- */
-function isTokenExpired(): boolean {
-  return !cachedToken || (cachedToken.tokenExpiresAt || 0) - Date.now() < 60000
-}
-
-interface TranslateRequestBody {
-  Text: string
-}
-
-/**
- * Translate text
- * @param text - Text to translate (string or string array)
- * @param to - Target language code (string or string array), default 'en'
- * @param options - Translation options
- * @returns Translation result
- */
-export async function translate(
-  text: string | string[],
-  to: string | string[],
-  options?: TranslateOptions,
-): Promise<TranslationResult> {
-  const { from, authenticationHeaders, userAgent, translateOptions } = options || {}
-
-  const targetLanguages = Array.isArray(to) ? to : [to]
-  const sourceTexts = Array.isArray(text) ? text : [text]
-
-  // Get token if no custom authentication headers provided
-  if (!authenticationHeaders) {
-    if (!tokenPromise) {
-      tokenPromise = getAuthToken(userAgent)
-    }
-    await tokenPromise
-
-    if (isTokenExpired()) {
-      tokenPromise = getAuthToken(userAgent)
-      await tokenPromise
-    }
-  }
-
-  // Build request body
-  const requestBody: TranslateRequestBody[] = sourceTexts.map((t) => ({ Text: t }))
-
-  // Build query parameters
-  const searchParams = new URLSearchParams([
-    ...targetLanguages.map((lang) => ['to', lang] as [string, string]),
-    ['api-version', '3.0'],
-  ])
-
-  if (from) {
-    searchParams.append('from', from)
-  }
-
-  // Add optional translation parameters
-  if (translateOptions) {
-    Object.entries(translateOptions).forEach(([key, value]) => {
-      if (value != null && value !== '') {
-        searchParams.append(key, String(value))
+  if (sessionInflight) return sessionInflight
+  sessionInflight = (async () => {
+    try {
+      const resp = await fetch('https://www.bing.com/translator')
+      if (!resp.ok) throw new Error(`Bing session failed: ${resp.status}`)
+      const html = await resp.text()
+      const ig = /IG:"([^"]+)"/.exec(html)?.[1]
+      const iid = /data-iid="([^"]+)"/.exec(html)?.[1] ?? 'translator.5023'
+      const helper = /params_AbusePreventionHelper\s*=\s*(\[[^\]]+\])/.exec(
+        html,
+      )?.[1]
+      if (!ig || !helper) {
+        throw new Error('Bing session failed: page layout changed')
       }
-    })
-  }
+      const [key, token, duration] = JSON.parse(helper) as [
+        number,
+        string,
+        number,
+      ]
+      const session: BingSession = {
+        ig,
+        iid,
+        key,
+        token,
+        expires: Date.now() + Math.min(duration || 3600000, 3600000) - 60000,
+      }
+      sessionCache = session
+      return session
+    } finally {
+      sessionInflight = null
+    }
+  })()
+  return sessionInflight
+}
 
-  // Build request headers
-  const headers: Record<string, string> = {
-    'User-Agent': userAgent || DEFAULT_USER_AGENT,
-    'Content-Type': 'application/json',
-  }
+// The language list is already BCP 47; map the few codes Bing names
+// differently.
+const BING_LANG_MAP: Record<string, string> = {
+  tl: 'fil',
+  no: 'nb',
+  sr: 'sr-Cyrl',
+  mn: 'mn-Cyrl',
+  hmn: 'mww',
+  ku: 'kmr',
+}
 
-  if (authenticationHeaders) {
-    Object.assign(headers, authenticationHeaders)
-  } else if (cachedToken) {
-    headers.Authorization = 'Bearer ' + cachedToken.token
-  }
-
-  try {
-    const response = await fetch(`${TRANSLATE_API_URL}?${searchParams}`, {
+async function translateOne(
+  text: string,
+  to: string,
+  retried = false,
+): Promise<string> {
+  const s = await getBingSession()
+  const resp = await fetch(
+    `https://www.bing.com/ttranslatev3?isVertical=1&IG=${s.ig}&IID=${s.iid}`,
+    {
       method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-    })
-
-    if (!response.ok) {
-      let errorMessage = ` Status: ${response.status} (${response.statusText})`
-      try {
-        const errorResponse = await response.json()
-        errorMessage += `\nResponse: ${JSON.stringify(errorResponse, null, 2)}`
-      } catch {
-        // Ignore JSON parsing error
-      }
-      throw new Error(`Translation failed${errorMessage}`)
-    }
-
-    return await response.json()
-  } catch (error: any) {
-    if (error.message?.startsWith('Translation failed')) {
-      throw error
-    }
-    throw new Error(`Translation failed: ${error.message}`)
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        fromLang: 'auto-detect',
+        to,
+        text,
+        token: s.token,
+        key: String(s.key),
+      }),
+    },
+  )
+  if (!resp.ok) {
+    sessionCache = null
+    if (!retried) return translateOne(text, to, true)
+    throw new Error(`Microsoft translate failed: ${resp.status}`)
   }
+  const data = await resp.json()
+  const first = Array.isArray(data) ? data[0] : null
+  if (!first?.translations?.[0]?.text) {
+    // An expired token or a captcha challenge comes back as an object
+    // (e.g. {"statusCode":400}) instead of the translations array.
+    sessionCache = null
+    if (!retried) return translateOne(text, to, true)
+    throw new Error(
+      `Microsoft translate failed: ${JSON.stringify(data).slice(0, 200)}`,
+    )
+  }
+  return first.translations[0].text
+}
+
+const JOINED_LIMIT = 900
+
+export async function translateMicrosoft(
+  texts: string[],
+  targetLang: string,
+): Promise<string[]> {
+  if (texts.length === 0) return []
+  const to = BING_LANG_MAP[targetLang] ?? targetLang
+
+  // ttranslatev3 takes one text per request, so join the cues with newlines
+  // (Bing preserves them) to keep one request per batch like the old API.
+  // Cue-internal line breaks are cosmetic; flatten them so they can't break
+  // the alignment.
+  const cleaned = texts.map((t) => t.replace(/\s*\n\s*/g, ' ').trim())
+  if (cleaned.length > 1) {
+    const joined = cleaned.join('\n')
+    if (joined.length <= JOINED_LIMIT && cleaned.every((t) => t !== '')) {
+      const lines = (await translateOne(joined, to)).split('\n')
+      if (lines.length === cleaned.length) {
+        return lines.map((l) => l.trim())
+      }
+      // The translator merged or split lines — redo this batch line by line.
+    }
+  }
+  return Promise.all(
+    cleaned.map((t) => (t === '' ? Promise.resolve(t) : translateOne(t, to))),
+  )
 }

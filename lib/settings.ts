@@ -18,7 +18,7 @@ export interface Settings {
 export function getDefaultSettings(): Pick<Settings, OptionalKeysOf<Settings>> {
   return {
     to: 'en',
-    engine: 'microsoft',
+    engine: 'google',
     displayMode: 'bilingual',
     'openai.baseUrl': 'https://api.openai.com/v1',
     'openai.prompt': DefaultLLMPrompt,

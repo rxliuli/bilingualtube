@@ -53,7 +53,7 @@ export function OptionsForm() {
     )
   }
 
-  const currentEngine = settings.engine ?? 'microsoft'
+  const currentEngine = settings.engine ?? 'google'
 
   return (
     <div className="mx-auto max-w-md p-4 space-y-6">
@@ -132,8 +132,8 @@ export function OptionsForm() {
               })
             }
           >
-            <NativeSelectOption value="microsoft">Microsoft</NativeSelectOption>
             <NativeSelectOption value="google">Google</NativeSelectOption>
+            <NativeSelectOption value="microsoft">Microsoft</NativeSelectOption>
             <NativeSelectOption value="openai">OpenAI</NativeSelectOption>
           </NativeSelect>
         </div>

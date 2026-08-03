@@ -6,7 +6,7 @@ A browser extension that adds bilingual subtitles to YouTube videos. Displays or
 
 - **Bilingual Subtitles**: Shows original and translated text together
 - **Official Translation Priority**: Uses YouTube's official translations when available
-- **API Translation Fallback**: Supports Microsoft Translator and OpenAI for videos without official translations
+- **API Translation Fallback**: Supports Google Translate, Microsoft Translator, and OpenAI for videos without official translations
 - **Cross-browser Support**: Works on Chrome, Edge, Firefox, and Safari
 
 ## Installation
@@ -33,7 +33,7 @@ Load the extension from `.output/chrome-mv3` (Chrome/Edge) or `.output/firefox-m
 Open the extension options page to configure:
 
 - **Target Language**: Select your preferred translation language
-- **Translation Engine**: Choose between Microsoft (default, no API key required) or OpenAI
+- **Translation Engine**: Choose between Google (default, no API key required), Microsoft, or OpenAI
 - **OpenAI Settings**: Configure API key, model, base URL, and custom prompts (when using OpenAI)
 
 ## Development
