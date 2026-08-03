@@ -4,11 +4,17 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@extport/wxt'],
   extport: {
-    projectName: 'BilingualTube',
-    appCategory: 'public.app-category.productivity',
-    bundleIdentifier: 'com.rxliuli.bilingualtube',
-    developmentTeam: 'N2X78TUUFG',
-    projectType: 'macos',
+    extension: 'ext_W3MLtNrma9OXTJg1JN3K',
+    safari: {
+      projectName: 'BilingualTube',
+      appCategory: 'public.app-category.productivity',
+      bundleIdentifier: 'com.rxliuli.bilingualtube',
+      developmentTeam: 'N2X78TUUFG',
+      projectType: 'macos',
+    },
+    // Daily anonymous usage ping + the Firefox data-collection declaration,
+    // injected by @extport/wxt — see PRIVACY.md "Anonymous Usage Statistics".
+    analytics: true,
   },
   vite: () => ({
     plugins: [

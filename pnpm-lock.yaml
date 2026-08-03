@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@extport/sdk':
+        specifier: ^0.0.9
+        version: 0.0.9(react@19.2.6)
       '@radix-ui/react-dropdown-menu':
         specifier: ^2.1.16
         version: 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -85,8 +88,8 @@ importers:
         version: 5.3.1
     devDependencies:
       '@extport/wxt':
-        specifier: ^0.0.3
-        version: 0.0.3(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.1)
+        specifier: ^0.0.7
+        version: 0.0.7(@extport/sdk@0.0.9(react@19.2.6))(wxt@0.20.26(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.1))
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
@@ -438,9 +441,23 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@extport/wxt@0.0.3':
-    resolution: {integrity: sha512-d9bIhwrb+YQnDEI9X47QFKeQhvH2Pl+qZ8Xy/NrSV3BO49WJfIPTbiK3OpuqVO+7BaJvjWkF1euzJ01+QckBkQ==}
+  '@extport/sdk@0.0.9':
+    resolution: {integrity: sha512-mniP2vPVAa4aabguH5HmEcboH8y9fQ43YD20pCFKbnOP1KfLqnNd1kq8mg88X2EnSc4KJKZERVSOE5UDM01p7Q==}
+    peerDependencies:
+      react: '>=18'
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@extport/wxt@0.0.7':
+    resolution: {integrity: sha512-lm9uTYIPsn7Kc+5kw9/CLuu1hiPXjIO+Eg7OslkeLRqdeNB2/YloJjbPUg1OfHJmxxOQQo5log45+EiDrAANrg==}
     engines: {node: '>=18'}
+    peerDependencies:
+      '@extport/sdk': '>=0.0.5'
+      wxt: '>=0.20.0'
+    peerDependenciesMeta:
+      '@extport/sdk':
+        optional: true
 
   '@floating-ui/core@1.7.3':
     resolution: {integrity: sha512-sGnvb5dmrJaKEZ+LDIpguvdX3bDlEllmv4/ClQ9awcmCZrlx5jQyyMWFM5kBI+EyNOCDDiKk8il0zeuX3Zlg/w==}
@@ -1850,6 +1867,9 @@ packages:
 
   htmlparser2@10.0.0:
     resolution: {integrity: sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==}
+
+  idb-keyval@6.3.0:
+    resolution: {integrity: sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==}
 
   idb@8.0.3:
     resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
@@ -3310,26 +3330,17 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
-  '@extport/wxt@0.0.3(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.1)':
+  '@extport/sdk@0.0.9(react@19.2.6)':
+    dependencies:
+      idb-keyval: 6.3.0
     optionalDependencies:
+      react: 19.2.6
+
+  '@extport/wxt@0.0.7(@extport/sdk@0.0.9(react@19.2.6))(wxt@0.20.26(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.1))':
+    dependencies:
       wxt: 0.20.26(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.1)
-    transitivePeerDependencies:
-      - '@types/node'
-      - '@vitejs/devtools'
-      - canvas
-      - eslint
-      - jiti
-      - less
-      - lightningcss
-      - rollup
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-      - tsx
-      - yaml
+    optionalDependencies:
+      '@extport/sdk': 0.0.9(react@19.2.6)
 
   '@floating-ui/core@1.7.3':
     dependencies:
@@ -4592,6 +4603,8 @@ snapshots:
       domhandler: 5.0.3
       domutils: 3.2.2
       entities: 6.0.1
+
+  idb-keyval@6.3.0: {}
 
   idb@8.0.3: {}
 

@@ -62,6 +62,10 @@ Requires macOS and Xcode:
 2. Run `pnpm build:safari`
 3. Build and test in Xcode
 
+## Privacy
+
+No personal data is collected. Subtitle text goes directly from your browser to the translation provider you choose, and a daily anonymous usage ping (install count and version only) is the only telemetry — see [PRIVACY.md](PRIVACY.md) for details.
+
 ## License
 
 GPL-3.0
