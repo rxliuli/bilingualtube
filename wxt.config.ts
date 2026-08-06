@@ -6,7 +6,6 @@ export default defineConfig({
   extport: {
     extension: 'ext_W3MLtNrma9OXTJg1JN3K',
     safari: {
-      projectName: 'BilingualTube',
       appCategory: 'public.app-category.productivity',
       bundleIdentifier: 'com.rxliuli.bilingualtube',
       developmentTeam: 'N2X78TUUFG',
