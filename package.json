@@ -45,7 +45,7 @@
     "type-fest": "^5.3.1"
   },
   "devDependencies": {
-    "@extport/wxt": "^0.0.7",
+    "@extport/wxt": "^0.0.9",
     "@types/node": "^25.6.0",
     "@types/query-selector-shadow-dom": "^1.0.4",
     "@types/react": "^19.2.14",
