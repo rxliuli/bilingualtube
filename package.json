@@ -2,7 +2,7 @@
   "name": "bilingualtube",
   "description": "manifest.json description",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -18,7 +18,7 @@
     "init-project": "vite-node lib/build/init.ts"
   },
   "dependencies": {
-    "@extport/sdk": "^0.0.9",
+    "@extport/sdk": "^0.0.10",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
@@ -45,7 +45,7 @@
     "type-fest": "^5.3.1"
   },
   "devDependencies": {
-    "@extport/wxt": "^0.0.9",
+    "@extport/wxt": "^0.0.11",
     "@types/node": "^25.6.0",
     "@types/query-selector-shadow-dom": "^1.0.4",
     "@types/react": "^19.2.14",
