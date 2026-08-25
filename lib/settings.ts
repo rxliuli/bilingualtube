@@ -6,13 +6,19 @@ export type DisplayMode = 'bilingual' | 'translation-only'
 
 export interface Settings {
   to?: ToLang
-  engine?: 'microsoft' | 'google' | 'openai'
+  engine?: 'microsoft' | 'google' | 'openai' | 'imp'
   displayMode?: DisplayMode
 
   'openai.apiKey'?: string
   'openai.model'?: string
   'openai.baseUrl'?: string
   'openai.prompt'?: string
+
+  // Imp Credits connection, filled in automatically by the connect flow.
+  // Only the api key is persisted — the service's origin and API base are
+  // constants (lib/imp.ts), and the model is server-authoritative so it is
+  // never stored (lib/translate/imp.ts never sends one).
+  'imp.apiKey'?: string
 }
 
 export function getDefaultSettings(): Pick<Settings, OptionalKeysOf<Settings>> {
