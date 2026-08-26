@@ -1,3 +1,4 @@
+import { checkConnection, exchangeCode, humanizeError } from '@rxliuli/imp-credits-sdk'
 import { messager, ConnectionCheckResult } from '@/lib/message'
 import {
   getMergedSettings,
@@ -31,21 +32,6 @@ function getTranslator(settings: Settings) {
     throw new Error(`Translator engine "${settings.engine}" is not supported.`)
   }
   return translator
-}
-
-// Exchange the one-time code the connect success page put in a meta tag for a
-// fresh per-connection API key. No session cookie here — the code itself is the
-// credential, single-use, for minutes (see imp-credits /api/connect/exchange).
-async function exchangeCode(code: string): Promise<{ apiKey: string }> {
-  const resp = await fetch(`${IMP_ORIGIN}/api/connect/exchange`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  })
-  if (!resp.ok) {
-    throw new Error(`Imp Credits connect failed: ${resp.status}`)
-  }
-  return resp.json()
 }
 
 async function translate(texts: string[]): Promise<string[]> {
@@ -106,7 +92,9 @@ export default defineBackground(() => {
 
   messager.onMessage('impConnect', async (ev) => {
     try {
-      const { apiKey } = await exchangeCode(ev.data)
+      // The SDK exchanges the one-time code for { apiKey, baseUrl, model };
+      // only the api key is persisted (base/model derive from IMP_ORIGIN).
+      const { apiKey } = await exchangeCode({ code: ev.data, origin: IMP_ORIGIN })
       // Persist the key and auto-select the Imp engine. Spread the current
       // stored settings (never persist the runtime defaults) so existing
       // OpenAI/provider settings are untouched.
@@ -118,10 +106,9 @@ export default defineBackground(() => {
       })
       return { ok: true }
     } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      }
+      // Humanize in `imp` mode so a 400 (invalid/already-used code) and a
+      // network error both become something the banner can say.
+      return { ok: false, error: humanizeError(error, 'imp') }
     }
   })
 
@@ -137,19 +124,10 @@ export default defineBackground(() => {
       return { ok: false, error: 'not connected' }
     }
     try {
-      const resp = await fetch(`${IMP_API_BASE}/me`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        credentials: 'omit',
-      })
-      if (resp.ok) {
-        return { ok: true }
-      }
-      return {
-        ok: false,
-        error: humanizeImpError(
-          new ApiError(resp.status, await resp.text()),
-        ),
-      }
+      // The SDK GETs {baseUrl}/me with credentials:'omit' — the status check
+      // must reflect the KEY only, not a logged-in session cookie (which
+      // would make a revoked key still return 200).
+      return await checkConnection({ baseUrl: IMP_API_BASE, apiKey })
     } catch (error) {
       return {
         ok: false,
