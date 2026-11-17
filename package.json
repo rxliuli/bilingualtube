@@ -57,10 +57,5 @@
     "wxt": "^0.21.5",
     "zx": "^8.8.5"
   },
-  "pnpm": {
-    "overrides": {
-      "wxt>vite": "^8.0.0"
-    }
-  },
-  "packageManager": "pnpm@10.5.2+sha512.da9dc28cd3ff40d0592188235ab25d3202add8a207afbedc682220e4a0029ffbff4562102b9e6e46b4e3f9e8bd53e6d05de48544b0c57d4b0179e22c76d1199b"
+  "packageManager": "pnpm@12.21.0+sha512.Zv2CeO4ok1zpUXktNDZ/869cQyonVkRYIwKVM4NbjaUpu+C+UTCv1W7QcT+4eJ5Hutgtk71a4v5UsVVi1idu8A=="
 }

@@ -1,0 +1,12 @@
+# pnpm 12 no longer reads the `pnpm` field in package.json — settings live
+# here now (https://pnpm.io/settings). Everything that used to sit under
+# "pnpm" in package.json moved here; the `wxt>vite` override was dropped
+# because wxt 0.21 already accepts vite 8 in its peer range.
+
+# pnpm blocks dependency lifecycle scripts unless they are approved here
+# (`pnpm approve-builds` writes this block). esbuild needs its postinstall to
+# place the platform binary; protobufjs ships one too.
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+
