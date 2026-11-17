@@ -1,4 +1,4 @@
-import { Translator } from '../types'
+import type { Translator } from '../types'
 import { translateMicrosoft } from './microsoft'
 
 export function microsoft(): Translator {

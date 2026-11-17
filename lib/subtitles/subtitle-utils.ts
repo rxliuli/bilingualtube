@@ -1,5 +1,5 @@
-import { TimedToken } from './PunctuationRestorationModel'
-import { GetTimedtextResp } from './youtube-types'
+import type { TimedToken } from './PunctuationRestorationModel'
+import type { GetTimedtextResp } from './youtube-types'
 import { normalizeLanguageCode } from '@/lib/translate/lang'
 
 /**
@@ -24,7 +24,7 @@ export function convertYoutubeToStandardFormat(
         let end: number
         if (nextSeg) {
           end = event.tStartMs + (nextSeg.tOffsetMs ?? 0)
-        } else if (events[i + 1]) {
+        } else if (nextEvent) {
           end = Math.min(
             event.tStartMs + (event.dDurationMs ?? 0),
             nextEvent.tStartMs,
@@ -245,12 +245,11 @@ export function sentencesInSubtitles(
 
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
+    if (!t) continue
 
     // Force split when there's a large time gap between tokens
-    if (
-      current.length > 0 &&
-      t.start - current[current.length - 1].end > TIME_GAP_THRESHOLD
-    ) {
+    const prev = current[current.length - 1]
+    if (prev && t.start - prev.end > TIME_GAP_THRESHOLD) {
       emitCurrent()
     }
 
@@ -296,12 +295,14 @@ export function sentencesInSubtitles(
 }
 
 function mergeTokens(tokens: TimedToken[], sep: string = ' '): TimedToken {
-  if (tokens.length === 0) {
+  const first = tokens[0]
+  const last = tokens[tokens.length - 1]
+  if (!first || !last) {
     throw new Error('Cannot merge empty tokens')
   }
   return {
-    start: tokens[0].start,
-    end: tokens[tokens.length - 1].end,
+    start: first.start,
+    end: last.end,
     text: tokens.map((t) => t.text).join(sep),
   }
 }

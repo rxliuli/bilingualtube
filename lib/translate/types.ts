@@ -1,5 +1,5 @@
-import { Settings } from '../settings'
-import { ToLang } from './lang'
+import type { Settings } from '../settings'
+import type { ToLang } from './lang'
 
 export interface Translator {
   name: Settings['engine']

@@ -81,8 +81,8 @@ export class CjkPunctModel {
     if (n === 0) return new Uint8Array(0)
 
     const ids = new Array<number>(n)
-    for (let i = 0; i < n; i++) {
-      ids[i] = this.vocab.get(chars[i]) ?? UNK_ID
+    for (const [i, ch] of chars.entries()) {
+      ids[i] = this.vocab.get(ch) ?? UNK_ID
     }
 
     // Sliding windows, take prediction from the most-centered window for each char.
@@ -91,41 +91,49 @@ export class CjkPunctModel {
 
     for (let start = 0; start < n; start += this.windowStride) {
       const end = Math.min(start + this.windowSize, n)
-      const winLen = end - start
+      // Slice first so the window length and the ids read below come from the
+      // same array — no index arithmetic to prove in range.
+      const windowIds = ids.slice(start, end)
+      const winLen = windowIds.length
 
       const inputIds = new BigInt64Array(winLen)
-      const attnMask = new BigInt64Array(winLen)
-      for (let i = 0; i < winLen; i++) {
-        inputIds[i] = BigInt(ids[start + i])
-        attnMask[i] = 1n
+      for (const [i, id] of windowIds.entries()) {
+        inputIds[i] = BigInt(id)
       }
+      const attnMask = new BigInt64Array(winLen).fill(1n)
       const feeds = {
         input_ids: new ort.Tensor('int64', inputIds, [1, winLen]),
         attention_mask: new ort.Tensor('int64', attnMask, [1, winLen]),
       }
       const result = await this.session.run(feeds)
-      const logits = result.logits.data as Float32Array // (1, winLen, NUM_CLASSES)
+      const logitsTensor = result.logits
+      if (!logitsTensor) {
+        throw new Error('CjkPunctModel: model output "logits" is missing')
+      }
+      // (1, winLen, NUM_CLASSES)
+      const logits = logitsTensor.data as Float32Array
 
       for (let i = 0; i < winLen; i++) {
         // softmax over 5 classes
-        const base = i * NUM_CLASSES
+        const row = logits.subarray(i * NUM_CLASSES, (i + 1) * NUM_CLASSES)
         let max = -Infinity
-        for (let c = 0; c < NUM_CLASSES; c++) {
-          const v = logits[base + c]
+        for (const v of row) {
           if (v > max) max = v
         }
         let sum = 0
         const probs = new Float32Array(NUM_CLASSES)
-        for (let c = 0; c < NUM_CLASSES; c++) {
-          probs[c] = Math.exp(logits[base + c] - max)
-          sum += probs[c]
+        for (const [c, v] of row.entries()) {
+          const p = Math.exp(v - max)
+          probs[c] = p
+          sum += p
         }
         let bestC = 0
         let bestP = 0
-        for (let c = 0; c < NUM_CLASSES; c++) {
-          probs[c] /= sum
-          if (probs[c] > bestP) {
-            bestP = probs[c]
+        for (const [c, p] of probs.entries()) {
+          const prob = p / sum
+          probs[c] = prob
+          if (prob > bestP) {
+            bestP = prob
             bestC = c
           }
         }
@@ -142,7 +150,8 @@ export class CjkPunctModel {
         const centerDist = Math.abs(i - winLen / 2)
         const score = bestP - 0.001 * centerDist
         const pos = start + i
-        if (score > used[pos] || used[pos] === 0) {
+        const scored = used[pos] ?? 0 // 0 marks "no window claimed this yet"
+        if (score > scored || scored === 0) {
           used[pos] = score
           out[pos] = cls
         }
@@ -170,8 +179,8 @@ export class CjkPunctModel {
     // remember which token each char belongs to.
     const allChars: string[] = []
     const charToToken: number[] = []
-    for (let ti = 0; ti < tokens.length; ti++) {
-      for (const ch of tokens[ti].text) {
+    for (const [ti, token] of tokens.entries()) {
+      for (const ch of token.text) {
         allChars.push(ch)
         charToToken.push(ti)
       }
@@ -186,8 +195,7 @@ export class CjkPunctModel {
     // YouTube cue would be discarded.
     const annotated: TimedToken[] = []
     let charCursor = 0
-    for (let ti = 0; ti < tokens.length; ti++) {
-      const original = tokens[ti]
+    for (const [ti, original] of tokens.entries()) {
       // Collect chars+labels for this token
       const tokenChars: string[] = []
       const tokenLabels: number[] = []
@@ -195,8 +203,11 @@ export class CjkPunctModel {
         charCursor < charToToken.length &&
         charToToken[charCursor] === ti
       ) {
-        tokenChars.push(allChars[charCursor])
-        tokenLabels.push(labels[charCursor])
+        const ch = allChars[charCursor]
+        if (ch === undefined) break
+        tokenChars.push(ch)
+        // `labels` has one entry per char; 0 (NONE) when the model gave none.
+        tokenLabels.push(labels[charCursor] ?? 0)
         charCursor++
       }
       const n = tokenChars.length
@@ -215,8 +226,8 @@ export class CjkPunctModel {
         // already end with punct. If prev ends with a comma and text has a
         // terminal, upgrade comma → terminal.
         const stripped = text.replace(/[。、？！,.?!]/g, '').trim()
-        if (stripped.length === 0 && annotated.length > 0) {
-          const prev = annotated[annotated.length - 1]
+        const prev = annotated.at(-1)
+        if (stripped.length === 0 && prev) {
           let merged = prev.text
           const lastChar = merged[merged.length - 1] ?? ''
           if (!PUNCT_FOLD_RE.test(lastChar)) {
@@ -240,15 +251,18 @@ export class CjkPunctModel {
       }
       const PUNCT_RE = /[。、？！,.?!]/
       for (let i = 0; i < n; i++) {
-        segText += tokenChars[i]
+        const ch = tokenChars[i]
         const cls = tokenLabels[i]
+        if (ch === undefined || cls === undefined) continue
+        segText += ch
         if (cls !== 0) {
           // YouTube ASR for ja already inserts ~50% of terminal punct. If the
           // very next char in the original text is ANY punctuation, defer to
           // it: append the original punct and split AFTER it, so the segment
           // ends with the authoritative punctuation.
-          if (i + 1 < n && PUNCT_RE.test(tokenChars[i + 1])) {
-            segText += tokenChars[i + 1]
+          const nextCh = tokenChars[i + 1]
+          if (nextCh !== undefined && PUNCT_RE.test(nextCh)) {
+            segText += nextCh
             pushSeg(
               original.start + (duration * segStart) / n,
               original.start + (duration * (i + 2)) / n,
@@ -259,7 +273,7 @@ export class CjkPunctModel {
             i++ // consume the original-punct char
             continue
           }
-          segText += ID_TO_PUNCT[cls]
+          segText += ID_TO_PUNCT[cls] ?? ''
           pushSeg(
             original.start + (duration * segStart) / n,
             original.start + (duration * (i + 1)) / n,

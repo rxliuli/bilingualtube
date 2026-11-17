@@ -5,16 +5,16 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Button } from '@/components/ui/button'
 
 import {
-  DisplayMode,
+  type DisplayMode,
   getMergedSettings,
   getSyncSettings,
   setSyncSettings,
-  Settings,
+  type Settings,
 } from '@/lib/settings'
 import { toast } from 'sonner'
 import { FaDiscord } from 'react-icons/fa'
 import { ExternalLink } from 'lucide-react'
-import { langs, ToLang } from '../../../lib/translate/lang'
+import { langs, type ToLang } from '../../../lib/translate/lang'
 import { testOpenAIConnection } from '@/lib/translate/openai'
 import { messager } from '@/lib/message'
 import { IMP_CONNECT_URL } from '@/lib/imp'

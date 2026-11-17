@@ -1,6 +1,6 @@
 import { defineExtensionMessaging } from '@webext-core/messaging'
-import { Settings } from './settings'
-import { TimedToken } from './subtitles/PunctuationRestorationModel'
+import type { Settings } from './settings'
+import type { TimedToken } from './subtitles/PunctuationRestorationModel'
 
 // Result of validating the stored Imp key without calling the model (401 ==
 // revoked/expired), so the options-page Connected badge is honest.

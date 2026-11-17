@@ -1,5 +1,5 @@
-import { TranslationToken } from '../store'
-import { TimedToken } from './PunctuationRestorationModel'
+import type { TranslationToken } from '../store'
+import type { TimedToken } from './PunctuationRestorationModel'
 import { sentencesInSubtitles } from './subtitle-utils'
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { TranslationToken } from '../store'
-import { TimedToken } from './PunctuationRestorationModel'
+import type { TranslationToken } from '../store'
+import type { TimedToken } from './PunctuationRestorationModel'
 import { mergeRestorationUpdate } from './restorationMerge'
 import { convertYoutubeToStandardFormat } from './subtitle-utils'
 import type { GetTimedtextResp } from './youtube-types'
@@ -35,12 +35,12 @@ describe('mergeRestorationUpdate', () => {
   // (e.g. at 875s) until restoration caught up.
   it('covers the full timeline when only a prefix is restored', async () => {
     const data = await loadTrack()
-    const trackEnd = data[data.length - 1].end
+    const trackEnd = data[data.length - 1]!.end
 
     const prefix = fakeRestoredPrefix(data, 500)
     const cues = mergeRestorationUpdate(prefix, data, [], 'en')
 
-    const lastCueEnd = cues[cues.length - 1].end
+    const lastCueEnd = cues[cues.length - 1]!.end
     expect(lastCueEnd).toBe(trackEnd)
 
     // A cue must exist at 875s (the mid-video playhead from the bug report),
@@ -68,7 +68,11 @@ describe('mergeRestorationUpdate', () => {
     const prefix = fakeRestoredPrefix(data, 500)
     const updated = mergeRestorationUpdate(prefix, data, translated, 'en')
 
-    const frontierTime = data[500].start
+    const frontierToken = data[500]
+    if (!frontierToken) {
+      throw new Error('fixture has fewer than 501 tokens')
+    }
+    const frontierTime = frontierToken.start
     // Tail cues far behind the frontier come from the same raw tokens, so
     // text and start are unchanged — their translations must survive. (The
     // few cues at the frontier seam legitimately regroup and re-translate.)
@@ -83,7 +87,7 @@ describe('mergeRestorationUpdate', () => {
     const data = await loadTrack()
     const full = fakeRestoredPrefix(data, data.length)
     const cues = mergeRestorationUpdate(full, data, [], 'en')
-    expect(cues[cues.length - 1].end).toBe(data[data.length - 1].end)
+    expect(cues[cues.length - 1]!.end).toBe(data[data.length - 1]!.end)
     // Restored punctuation must actually show up in the output.
     expect(cues.some((c) => c.text.includes('.'))).toBe(true)
   })

@@ -1,10 +1,10 @@
 import { checkConnection, exchangeCode, humanizeError } from '@rxliuli/imp-credits-sdk'
-import { messager, ConnectionCheckResult } from '@/lib/message'
+import { messager, type ConnectionCheckResult } from '@/lib/message'
 import {
   getMergedSettings,
   getSyncSettings,
   setSyncSettings,
-  Settings,
+  type Settings,
 } from '@/lib/settings'
 import { microsoft } from '@/lib/translate/microsoft'
 import { google } from '@/lib/translate/google'
@@ -52,7 +52,7 @@ async function translate(texts: string[]): Promise<string[]> {
       results[i] = cached
     } else {
       uncachedIndices.push(i)
-      uncachedTexts.push(texts[i])
+      uncachedTexts.push(text)
     }
   }
 
@@ -70,12 +70,14 @@ async function translate(texts: string[]): Promise<string[]> {
     throw new Error(humanizeImpError(error))
   }
 
-  for (let i = 0; i < uncachedIndices.length; i++) {
-    const originalIndex = uncachedIndices[i]
+  for (const [i, originalIndex] of uncachedIndices.entries()) {
     const translatedText = translated[i]
+    const originalText = uncachedTexts[i]
+    // A short translator result leaves its slot unset (readable as undefined by
+    // the caller) instead of caching a missing translation.
+    if (translatedText === undefined) continue
     results[originalIndex] = translatedText
 
-    const originalText = uncachedTexts[i]
     if (originalText) {
       await setCached(engine, targetLang, originalText, translatedText)
     }

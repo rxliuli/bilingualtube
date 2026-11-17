@@ -5,8 +5,8 @@ import {
   resolveSubtitleTrack,
   sentencesInSubtitles,
 } from './subtitle-utils'
-import { GetTimedtextResp, TimedtextEvent } from './youtube-types'
-import { TimedToken } from './PunctuationRestorationModel'
+import type { GetTimedtextResp, TimedtextEvent } from './youtube-types'
+import type { TimedToken } from './PunctuationRestorationModel'
 import { restorePunctuation } from './restorePunctuationInSubtitles'
 
 describe('subtitle-utils', () => {
@@ -304,10 +304,10 @@ describe('subtitle-utils', () => {
       const data = convertYoutubeToStandardFormat({ events })
       const merged = sentencesInSubtitles(data, 'en')
       expect(merged.length).toBe(2)
-      expect(merged[0].text).toBe(
+      expect(merged[0]!.text).toBe(
         "So, you see, friendship isn't always easy, but there's no doubt it's worth fighting [music] for.",
       )
-      expect(merged[1].text).toBe('>> A [laughter] h that sounds familiar.')
+      expect(merged[1]!.text).toBe('>> A [laughter] h that sounds familiar.')
     })
   })
   describe('English subtitle merge', () => {
@@ -673,11 +673,12 @@ describe('subtitle-utils', () => {
       // The displayed result must be valid, well-ordered French cues.
       const cues = sentencesInSubtitles(data, resolved.lang)
       expect(cues.length).toBeGreaterThan(0)
-      expect(cues[0].text.toLowerCase()).toContain('il était une fois')
-      for (let i = 0; i < cues.length; i++) {
-        expect(cues[i].end).toBeGreaterThanOrEqual(cues[i].start)
-        if (i > 0) {
-          expect(cues[i].start).toBeGreaterThanOrEqual(cues[i - 1].end)
+      expect(cues[0]!.text.toLowerCase()).toContain('il était une fois')
+      for (const [i, cue] of cues.entries()) {
+        const previous = cues[i - 1]
+        expect(cue.end).toBeGreaterThanOrEqual(cue.start)
+        if (previous) {
+          expect(cue.start).toBeGreaterThanOrEqual(previous.end)
         }
       }
     })

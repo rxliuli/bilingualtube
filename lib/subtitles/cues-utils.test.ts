@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { findMatchingSubtitle, getCuesToTranslate } from './cues-utils'
-import { TranslationToken } from '../store'
+import type { TranslationToken } from '../store'
 
 // Correctly handle
 it('getCuesToTranslate filters cues correctly', () => {

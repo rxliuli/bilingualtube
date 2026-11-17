@@ -1,4 +1,4 @@
-import { TranslationToken } from '../store'
+import type { TranslationToken } from '../store'
 
 const MAX_CUES_TO_TRANSLATE = 10
 

@@ -150,5 +150,6 @@ export function normalizeLanguageCode(lang: string): string {
   }
 
   // For other languages, extract the primary language code (e.g., en-US → en)
-  return normalized.split('-')[0]
+  const [primary = normalized] = normalized.split('-')
+  return primary
 }

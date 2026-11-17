@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { PublicPath } from 'wxt/browser'
+import type { PublicPath } from 'wxt/browser'
 import { CjkPunctModel } from './CjkPunctModel'
 import type { TimedToken } from './PunctuationRestorationModel'
 
@@ -27,7 +27,9 @@ it('inserts Japanese punctuation on a long YouTube-style run', async () => {
   // (a) at least one terminal punct emitted somewhere, (b) all original chars
   // preserved (after stripping the inserted punct).
   expect(joinedText).toMatch(/[。！？]/)
-  expect(joinedText.replace(/[。、？！]/g, '')).toBe(tokens[0].text)
+  expect(joinedText.replace(/[。、？！]/g, '')).toBe(
+    tokens.map((t) => t.text).join(''),
+  )
 }, 60000)
 
 it('never produces a sub-cue that is just punctuation', async () => {
@@ -71,7 +73,7 @@ it('annotates fragmented tokens, attaching punctuation to the token that ends a 
 
   // Timing preserved
   expect(final.length).toBe(tokens.length)
-  expect(final[0].start).toBe(0)
+  expect(final[0]!.start).toBe(0)
   expect(final.at(-1)!.end).toBe(4)
   // Concatenated original chars round-trip (after stripping inserted punct).
   const concatStripped = final

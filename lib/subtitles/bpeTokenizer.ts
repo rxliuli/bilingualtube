@@ -9,8 +9,8 @@ export class BPETokenizer {
     
     const lines = text.trim().split('\n')
     lines.forEach((line, index) => {
-      const parts = line.split('\t')
-      const piece = parts[0]
+      const [piece] = line.split('\t')
+      if (piece === undefined) return
       this.vocab.set(piece, index)
       this.reverseVocab.set(index, piece)
     })

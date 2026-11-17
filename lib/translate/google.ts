@@ -1,4 +1,4 @@
-import { Translator } from './types'
+import type { Translator } from './types'
 import { decodeHtmlEntities } from './html-entities'
 
 // Chrome's internal shared key for the translate-pa endpoint (ported from

@@ -1,4 +1,4 @@
-import { OptionalKeysOf } from 'type-fest'
+import type { OptionalKeysOf } from 'type-fest'
 import { DefaultLLMPrompt } from './translate/openai'
 import { type ToLang } from './translate/lang'
 

@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest'
 import {
   PunctuationRestorationModel,
-  TimedToken,
+  type TimedToken,
 } from './PunctuationRestorationModel'
 import { BPETokenizer } from './bpeTokenizer'
-import { PublicPath } from 'wxt/browser'
+import type { PublicPath } from 'wxt/browser'
 
 it('should restore punctuation correctly', async () => {
   const tokenizer = new BPETokenizer()

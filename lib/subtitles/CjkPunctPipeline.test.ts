@@ -1,6 +1,6 @@
 import * as ort from 'onnxruntime-web/wasm'
 import { expect, it } from 'vitest'
-import { PublicPath } from 'wxt/browser'
+import type { PublicPath } from 'wxt/browser'
 import { CjkPunctModel } from './CjkPunctModel'
 import { getCjkModel } from './restorePunctuationInSubtitles'
 import {

@@ -1,5 +1,5 @@
-import { langs, ToLang } from './lang'
-import { Translator } from './types'
+import { langs, type ToLang } from './lang'
+import type { Translator } from './types'
 import { decodeHtmlEntities } from './html-entities'
 import { applyRequestInterceptors, type OpenAIRequest } from './interceptors'
 
@@ -106,10 +106,11 @@ function parseNumberedOutput(output: string, expectedCount: number): string[] {
   for (const line of lines) {
     const match = line.match(/^\[(\d+)\]\s*(.*)$/)
     if (match) {
-      const index = parseInt(match[1], 10) - 1
+      const [, rawIndex = '', rawText = ''] = match
+      const index = parseInt(rawIndex, 10) - 1
       if (index >= 0 && index < expectedCount) {
         // Models sometimes emit entity literals (`&gt;`) for subtitle arrows.
-        results[index] = decodeHtmlEntities(match[2].trim())
+        results[index] = decodeHtmlEntities(rawText.trim())
       }
     }
   }

@@ -1,8 +1,8 @@
 import { interceptFetch, interceptXHR, Vista } from '@rxliuli/vista'
 import globalStyle from './global.css?inline'
-import { store, TranslationToken } from '../../lib/store'
+import { store, type TranslationToken } from '../../lib/store'
 import { eventMessager } from '@/lib/eventMessage'
-import { GetTimedtextResp } from '../../lib/subtitles/youtube-types'
+import type { GetTimedtextResp } from '../../lib/subtitles/youtube-types'
 import { observeElement } from '@/lib/observeElement'
 import { normalizeLanguageCode } from '@/lib/translate/lang'
 import {

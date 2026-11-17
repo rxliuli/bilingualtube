@@ -1,5 +1,5 @@
-import { TimedToken } from './subtitles/PunctuationRestorationModel'
-import { GetTimedtextResp } from './subtitles/youtube-types'
+import type { TimedToken } from './subtitles/PunctuationRestorationModel'
+import type { GetTimedtextResp } from './subtitles/youtube-types'
 
 export interface TranslationToken extends TimedToken {
   translated?: string

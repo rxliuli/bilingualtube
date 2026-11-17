@@ -38,7 +38,7 @@ for (const provider of providers) {
       const failures: { source: string; output: string }[] = []
 
       for (const source of evalData.bad_sources) {
-        const [result] = await translator.translate([source], 'zh-Hans')
+        const [result = ''] = await translator.translate([source], 'zh-Hans')
         if (hasMetaCommentary(result)) {
           failures.push({ source: source.slice(0, 80), output: result })
         }
@@ -57,7 +57,7 @@ for (const provider of providers) {
       const failures: { source: string; output: string }[] = []
 
       for (const source of evalData.good_sources.slice(0, 20)) {
-        const [result] = await translator.translate([source], 'zh-Hans')
+        const [result = ''] = await translator.translate([source], 'zh-Hans')
         if (!result || result.trim().length === 0) {
           failures.push({ source: source.slice(0, 80), output: result })
         }

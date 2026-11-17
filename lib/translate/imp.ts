@@ -1,4 +1,4 @@
-import { Translator } from './types'
+import type { Translator } from './types'
 import { decodeHtmlEntities } from './html-entities'
 import { IMP_API_BASE } from '@/lib/imp'
 

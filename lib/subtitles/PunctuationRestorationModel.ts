@@ -14,22 +14,28 @@ export interface AnnotatedToken extends TimedToken {
   punctType: 'NONE' | 'COMMA' | 'PERIOD' | 'QUESTION'
 }
 
-// Punctuation and case mapping
-const PUNCT_MAP: Record<number, string> = {
-  0: '', // NO_PUNCT
-  1: ',', // COMMA
-  2: '.', // PERIOD
-  3: '?', // QUESTION
-}
+// Punctuation and case mapping, indexed by the model's class id.
+// Tuples (not Records) so a lookup by a known class id is total.
+const PUNCT_MAP = [
+  '', // NO_PUNCT
+  ',', // COMMA
+  '.', // PERIOD
+  '?', // QUESTION
+] as const
 
 const CASE_TYPE_MAP = ['LOWER', 'UPPER', 'CAP', 'MIX'] as const
 const PUNCT_TYPE_MAP = ['NONE', 'COMMA', 'PERIOD', 'QUESTION'] as const
 
-const CASE_MAP: Record<number, (word: string) => string> = {
-  0: (w) => w.toLowerCase(), // LOWER
-  1: (w) => w.toUpperCase(), // UPPER
-  2: (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(), // CAP
-  3: (w) => w, // MIX_CASE
+const CASE_MAP = [
+  (w: string) => w.toLowerCase(), // LOWER
+  (w: string) => w.toUpperCase(), // UPPER
+  (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(), // CAP
+  (w: string) => w, // MIX_CASE
+] as const
+
+/** Class id the model predicts; missing / unknown ids fall back to class 0. */
+function classId(predicted: number | undefined): 0 | 1 | 2 | 3 {
+  return predicted === 1 || predicted === 2 || predicted === 3 ? predicted : 0
 }
 
 export class PunctuationRestorationModel {
@@ -100,13 +106,17 @@ export class PunctuationRestorationModel {
       }
 
       const bpeIndices: number[] = []
-      const currentWord = words[wordIdx].toLowerCase()
+      const word = words[wordIdx]
+      if (word === undefined) break
+      const currentWord = word.toLowerCase()
 
       // Accumulate BPE tokens until matching current word
       let accumulatedText = ''
 
       while (bpeIdx < bpeTokenIds.length) {
-        const bpeToken = this.tokenizer.decode([bpeTokenIds[bpeIdx]])
+        const bpeTokenId = bpeTokenIds[bpeIdx]
+        if (bpeTokenId === undefined) break
+        const bpeToken = this.tokenizer.decode([bpeTokenId])
         accumulatedText += bpeToken
 
         // Only record valid token indices
@@ -148,9 +158,8 @@ export class PunctuationRestorationModel {
     return tokens.map((token, wordIdx) => {
       // Use word index directly to get predictions (model output already excludes <s> and </s>)
       // Prediction indices directly correspond to word indices
-      const caseType = casePred[wordIdx] !== undefined ? casePred[wordIdx] : 0
-      const punctType =
-        punctPred[wordIdx] !== undefined ? punctPred[wordIdx] : 0
+      const caseType = classId(casePred[wordIdx])
+      const punctType = classId(punctPred[wordIdx])
 
       return {
         ...token,
@@ -226,8 +235,9 @@ export class PunctuationRestorationModel {
           : windowResults.length - overlapWords
 
       for (let i = keepStart; i < keepEnd; i++) {
-        if (i < windowResults.length) {
-          results.push(windowResults[i])
+        const windowResult = windowResults[i]
+        if (windowResult) {
+          results.push(windowResult)
         }
       }
 
@@ -305,18 +315,43 @@ export class PunctuationRestorationModel {
       [1],
     )
 
-    // Run model
+    // Run model — the sherpa punctuation model takes exactly these 3 inputs
+    // and returns case + punct logits, in that order.
+    const [tokenIdsName, validIdsName, labelLensName, ...extraInputs] =
+      this.session.inputNames
+    if (
+      !tokenIdsName ||
+      !validIdsName ||
+      !labelLensName ||
+      extraInputs.length > 0
+    ) {
+      throw new Error(
+        `Expected 3 model inputs, got ${this.session.inputNames.length}`,
+      )
+    }
     const feeds: Record<string, ort.Tensor> = {}
-    feeds[this.session.inputNames[0]] = inputTokenIds
-    feeds[this.session.inputNames[1]] = inputValidIds
-    feeds[this.session.inputNames[2]] = labelLens
+    feeds[tokenIdsName] = inputTokenIds
+    feeds[validIdsName] = inputValidIds
+    feeds[labelLensName] = labelLens
 
     const results = await this.session.run(feeds)
 
     // Parse output
-    const outputNames = this.session.outputNames
-    const caseLogits = results[outputNames[0]].data as Float32Array
-    const punctLogits = results[outputNames[1]].data as Float32Array
+    const [caseLogitsName, punctLogitsName] = this.session.outputNames
+    if (!caseLogitsName || !punctLogitsName) {
+      throw new Error(
+        `Expected 2 model outputs, got ${this.session.outputNames.length}`,
+      )
+    }
+    const caseLogitsTensor = results[caseLogitsName]
+    const punctLogitsTensor = results[punctLogitsName]
+    if (!caseLogitsTensor || !punctLogitsTensor) {
+      throw new Error(
+        `Model returned no "${caseLogitsName}"/"${punctLogitsName}" output`,
+      )
+    }
+    const caseLogits = caseLogitsTensor.data as Float32Array
+    const punctLogits = punctLogitsTensor.data as Float32Array
 
     const caseClasses = 4
     const punctClasses = 4
@@ -327,21 +362,29 @@ export class PunctuationRestorationModel {
     const punctPred: number[] = []
 
     for (let i = 0; i < numPredictions; i++) {
+      const caseRow = caseLogits.subarray(
+        i * caseClasses,
+        (i + 1) * caseClasses,
+      )
       let maxCaseIdx = 0
-      let maxCaseVal = caseLogits[i * caseClasses]
-      for (let j = 1; j < caseClasses; j++) {
-        if (caseLogits[i * caseClasses + j] > maxCaseVal) {
-          maxCaseVal = caseLogits[i * caseClasses + j]
+      let maxCaseVal = -Infinity
+      for (const [j, v] of caseRow.entries()) {
+        if (v > maxCaseVal) {
+          maxCaseVal = v
           maxCaseIdx = j
         }
       }
       casePred.push(maxCaseIdx)
 
+      const punctRow = punctLogits.subarray(
+        i * punctClasses,
+        (i + 1) * punctClasses,
+      )
       let maxPunctIdx = 0
-      let maxPunctVal = punctLogits[i * punctClasses]
-      for (let j = 1; j < punctClasses; j++) {
-        if (punctLogits[i * punctClasses + j] > maxPunctVal) {
-          maxPunctVal = punctLogits[i * punctClasses + j]
+      let maxPunctVal = -Infinity
+      for (const [j, v] of punctRow.entries()) {
+        if (v > maxPunctVal) {
+          maxPunctVal = v
           maxPunctIdx = j
         }
       }

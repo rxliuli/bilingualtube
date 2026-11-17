@@ -1,9 +1,9 @@
-import { PublicPath } from 'wxt/browser'
+import type { PublicPath } from 'wxt/browser'
 import { BPETokenizer } from './bpeTokenizer'
 import {
-  TimedToken,
+  type TimedToken,
   PunctuationRestorationModel,
-  AnnotatedToken,
+  type AnnotatedToken,
 } from './PunctuationRestorationModel'
 import { CjkPunctModel } from './CjkPunctModel'
 
@@ -20,13 +20,18 @@ function mapAnnotatedToTimed(
   originals: TimedToken[],
 ): TimedToken[] {
   return tokens.map((t, i) => {
-    const original = originals[i].text
-    // Special handling for [Music] and [Applause] tags, keep unchanged
-    if (['[Music]', '[Applause]'].includes(original)) {
-      return { ...t, text: original }
+    // annotate() streams prefixes of `originals`, so every index has an
+    // original.
+    const original = originals[i]
+    if (!original) {
+      return t
     }
-    if (/[.,!?]$/.test(original)) {
-      return { ...t, text: original }
+    // Special handling for [Music] and [Applause] tags, keep unchanged
+    if (['[Music]', '[Applause]'].includes(original.text)) {
+      return { ...t, text: original.text }
+    }
+    if (/[.,!?]$/.test(original.text)) {
+      return { ...t, text: original.text }
     }
     const cased =
       t.caseType === 'CAP'
