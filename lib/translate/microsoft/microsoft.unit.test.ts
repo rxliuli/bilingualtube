@@ -95,6 +95,41 @@ describe('translateMicrosoft', () => {
     expect(calls).toBe(3)
   })
 
+  it('decodes HTML entities in the joined batch result', async () => {
+    setupFetch(() => mockTranslateResponse('&gt;&gt; [笑声]\nHola'))
+
+    const { translateMicrosoft } = await import('./microsoft')
+    const result = await translateMicrosoft(
+      ['>> [laughter]', 'Hello'],
+      'zh-Hans',
+    )
+
+    expect(result).toEqual(['>> [笑声]', 'Hola'])
+  })
+
+  it('decodes HTML entities on the per-line fallback path', async () => {
+    let calls = 0
+    setupFetch((body) => {
+      calls++
+      if (calls === 1) {
+        // Merging the two lines forces the per-line retry.
+        return mockTranslateResponse('[merged]')
+      }
+      return mockTranslateResponse(
+        body.get('text') === '>> [laughter]' ? '&gt;&gt; [笑声]' : 'Hola',
+      )
+    })
+
+    const { translateMicrosoft } = await import('./microsoft')
+    const result = await translateMicrosoft(
+      ['>> [laughter]', 'Hello'],
+      'zh-Hans',
+    )
+
+    expect(result).toEqual(['>> [笑声]', 'Hola'])
+    expect(calls).toBe(3)
+  })
+
   it('maps language codes to Bing codes and passes BCP 47 codes through', async () => {
     const seen: string[] = []
     setupFetch((body) => {

@@ -56,6 +56,18 @@ describe('imp', () => {
     })
   })
 
+  it('decodes HTML entities in the returned texts', async () => {
+    const fetchMock = setupFetch()
+    fetchMock.mockResolvedValue(okResponse(['&gt;&gt; [笑声]', 'Hola']))
+
+    const result = await imp({ apiKey: 'k' }).translate(
+      ['>> [laughter]', 'Hello'],
+      'zh-Hans',
+    )
+
+    expect(result).toEqual(['>> [笑声]', 'Hola'])
+  })
+
   it('returns [] for empty input without requesting', async () => {
     const fetchMock = setupFetch()
     const result = await imp({ apiKey: 'k' }).translate([], 'es')

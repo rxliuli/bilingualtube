@@ -1,4 +1,5 @@
 import { Translator } from './types'
+import { decodeHtmlEntities } from './html-entities'
 import { IMP_API_BASE } from '@/lib/imp'
 
 // Error that carries the HTTP status so callers can humanize it (e.g. the
@@ -69,7 +70,9 @@ export function imp(options: ImpConfig): Translator {
         throw new ApiError(resp.status, await resp.text())
       }
       const data = await resp.json()
-      return data.texts as string[]
+      // The LLM behind Imp occasionally emits entity literals (`&gt;`); decode
+      // so they never reach the renderer or the cache as raw entities.
+      return (data.texts as string[]).map(decodeHtmlEntities)
     },
   }
 }

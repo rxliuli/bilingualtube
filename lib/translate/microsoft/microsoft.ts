@@ -2,6 +2,8 @@
 // (edge.microsoft.com/translate/auth) on 2026-07-30, so this now goes through
 // the Bing web translator: scrape a session from the translator page, then
 // call ttranslatev3. The token is valid for one hour.
+
+import { decodeHtmlEntities } from '../html-entities'
 interface BingSession {
   ig: string
   iid: string
@@ -121,12 +123,14 @@ export async function translateMicrosoft(
     if (joined.length <= JOINED_LIMIT && cleaned.every((t) => t !== '')) {
       const lines = (await translateOne(joined, to)).split('\n')
       if (lines.length === cleaned.length) {
-        return lines.map((l) => l.trim())
+        return lines.map((l) => decodeHtmlEntities(l.trim()))
       }
       // The translator merged or split lines — redo this batch line by line.
     }
   }
   return Promise.all(
-    cleaned.map((t) => (t === '' ? Promise.resolve(t) : translateOne(t, to))),
+    cleaned.map(async (t) =>
+      t === '' ? t : decodeHtmlEntities(await translateOne(t, to)),
+    ),
   )
 }

@@ -1,5 +1,6 @@
 import { langs, ToLang } from './lang'
 import { Translator } from './types'
+import { decodeHtmlEntities } from './html-entities'
 import { applyRequestInterceptors, type OpenAIRequest } from './interceptors'
 
 export const DefaultLLMSystemPrompt = `
@@ -107,7 +108,8 @@ function parseNumberedOutput(output: string, expectedCount: number): string[] {
     if (match) {
       const index = parseInt(match[1], 10) - 1
       if (index >= 0 && index < expectedCount) {
-        results[index] = match[2].trim()
+        // Models sometimes emit entity literals (`&gt;`) for subtitle arrows.
+        results[index] = decodeHtmlEntities(match[2].trim())
       }
     }
   }

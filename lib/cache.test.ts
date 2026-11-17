@@ -21,6 +21,13 @@ describe('cache', () => {
     expect(await getCached('openai', 'zh', 'hello')).toBe('你好')
   })
 
+  it('decodes HTML entities in cached translations', async () => {
+    await setCached('imp', 'zh-Hans', '>> [laughter]', '&gt;&gt; [笑声]')
+    expect(await getCached('imp', 'zh-Hans', '>> [laughter]')).toBe(
+      '>> [笑声]',
+    )
+  })
+
   it('should separate cache by engine', async () => {
     await setCached('openai', 'zh', 'hello', '你好-openai')
     await setCached('microsoft', 'zh', 'hello', '你好-microsoft')

@@ -1,38 +1,9 @@
 import { Translator } from './types'
+import { decodeHtmlEntities } from './html-entities'
 
 // Chrome's internal shared key for the translate-pa endpoint (ported from
 // imp-translate). Same key/endpoint Chrome's built-in translation uses.
 const GOOGLE_TRANSLATE_HTML_KEY = 'AIzaSyATBXajvzQLTDHEQbcpq0Ihe0vWDHmO520'
-
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-}
-
-function decodeHTML(input: string): string {
-  return input.replace(
-    /&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g,
-    (match, body: string) => {
-      if (body[0] === '#') {
-        const code =
-          body[1] === 'x' || body[1] === 'X'
-            ? parseInt(body.slice(2), 16)
-            : parseInt(body.slice(1), 10)
-        if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) return match
-        try {
-          return String.fromCodePoint(code)
-        } catch {
-          return match
-        }
-      }
-      return NAMED_ENTITIES[body] ?? match
-    },
-  )
-}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -66,7 +37,7 @@ async function translateGoogle(
   }
   const data = await resp.json()
   const translated = data[0] as string[]
-  return translated.map((t) => decodeHTML(t))
+  return translated.map(decodeHtmlEntities)
 }
 
 export function google(): Translator {

@@ -1,4 +1,5 @@
 import { type DBSchema, openDB, deleteDB, type IDBPDatabase } from 'idb'
+import { decodeHtmlEntities } from '@/lib/translate/html-entities'
 
 const DB_NAME = 'bilingual-tube'
 const DB_VERSION = 1
@@ -45,7 +46,9 @@ export async function getCached(
   const entry = await db.get('translations', cacheKey(engine, targetLang, text))
   if (!entry) return undefined
   if (Date.now() - entry.ts > MAX_AGE) return undefined
-  return entry.text
+  // Entries written before entity decoding existed (and any written by a
+  // provider that regresses) are healed on read; that is why writes stay raw.
+  return decodeHtmlEntities(entry.text)
 }
 
 export async function setCached(
