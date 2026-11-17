@@ -36,7 +36,7 @@ importers:
         specifier: ^8.0.4
         version: 8.0.4
       lucide-react:
-        specifier: 1.73.0
+        specifier: ^1.73.0
         version: 1.73.0(@types/react@19.3.0)(react@19.3.1)
       next-themes:
         specifier: ^0.4.6
@@ -69,7 +69,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       type-fest:
-        specifier: 6.0.0
+        specifier: ^6.0.0
         version: 6.0.0
     devDependencies:
       '@extport/wxt':
