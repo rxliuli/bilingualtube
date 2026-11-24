@@ -18,7 +18,7 @@
     "init-project": "vite-node lib/build/init.ts"
   },
   "dependencies": {
-    "@extport/sdk": "^0.0.10",
+    "@extport/sdk": "^0.0.11",
     "@rxliuli/imp-credits-sdk": "^0.0.2",
     "@rxliuli/vista": "^0.5.3",
     "@tailwindcss/vite": "^4.3.5",
@@ -41,7 +41,7 @@
     "type-fest": "^6.0.0"
   },
   "devDependencies": {
-    "@extport/wxt": "^0.0.13",
+    "@extport/wxt": "^0.0.15",
     "@types/node": "^26.6.6",
     "@types/query-selector-shadow-dom": "^1.0.4",
     "@types/react": "^19.3.0",
