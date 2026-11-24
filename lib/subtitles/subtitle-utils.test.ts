@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from 'vitest'
 import {
   convertYoutubeToStandardFormat,
   hasMissingPunctuation,
+  looksLikeEnglish,
   resolveSubtitleTrack,
   sentencesInSubtitles,
   splitBlockTokensAtSentenceBoundaries,
@@ -781,6 +782,58 @@ describe('subtitle-utils', () => {
           expect(cue.start).toBeGreaterThanOrEqual(previous.end)
         }
       }
+    })
+    // Regression: YouTube occasionally mislabels English ASR tracks as another
+    // language (e.g. `lang=th` on music video 0eRZEu5ZrVM), leaving unpunctuated
+    // English text outside the `sherpa-en` path. Detect English from the actual
+    // text and route through `sherpa-en`.
+    it('routes English ASR mislabeled as Thai through sherpa-en', async () => {
+      const resp = (await import('./assets/timedtext-0eRZEu5ZrVM.json'))
+        .default as GetTimedtextResp
+      const data = convertYoutubeToStandardFormat(resp)
+      expect(looksLikeEnglish(data)).toBe(true)
+      expect(
+        resolveSubtitleTrack({ rawLang: 'th', tlang: null, kind: 'asr', data }),
+      ).toEqual({ lang: 'en', mode: 'sherpa-en' })
+
+      let restored = data
+      for await (const processed of restorePunctuation(data)) {
+        restored = processed
+      }
+      const cues = sentencesInSubtitles(restored, 'en')
+      console.log('0eRZEu5ZrVM first 10 cues:', cues.slice(0, 10).map((c) => c.text))
+      expect(cues.some((c) => /[.,!?]/.test(c.text))).toBe(true)
+      const longest = cues.reduce((a, b) =>
+        b.text.length > a.text.length ? b : a,
+      )
+      expect(longest.text.length).toBeLessThan(200)
+    })
+    it('does not misclassify non-English tracks as English', async () => {
+      const frResp = (await import('./assets/timedtext-B6oUohZnKIc-french.json'))
+        .default as GetTimedtextResp
+      expect(looksLikeEnglish(convertYoutubeToStandardFormat(frResp))).toBe(false)
+
+      const jaResp = (await import('./assets/timedtext-japanese.json'))
+        .default as GetTimedtextResp
+      expect(looksLikeEnglish(convertYoutubeToStandardFormat(jaResp))).toBe(false)
+
+      // Pure-ASCII Indonesian text must not be mistaken for English
+      const idTokens: TimedToken[] = [
+        {
+          start: 0,
+          end: 5,
+          text: 'selamat pagi semua hari ini kita akan belajar membuat aplikasi web bersama',
+        },
+      ]
+      expect(looksLikeEnglish(idTokens)).toBe(false)
+      expect(
+        resolveSubtitleTrack({
+          rawLang: 'id',
+          tlang: null,
+          kind: 'asr',
+          data: idTokens,
+        }),
+      ).toEqual({ lang: 'id', mode: 'sentences' })
     })
   })
 })

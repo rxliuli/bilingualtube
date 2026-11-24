@@ -55,6 +55,103 @@ const CJK_PUNCT_RATIO_THRESHOLD = 0.05
  */
 const MAX_UNPUNCTUATED_RUN = 50
 
+// High-frequency English function words used to distinguish English from other
+// pure-ASCII Latin-script languages (e.g. Indonesian, Dutch, Malay) when
+// YouTube mislabels an English ASR track under another language code.
+const ENGLISH_STOPWORDS = new Set([
+  'the',
+  'to',
+  'and',
+  'of',
+  'in',
+  'is',
+  'it',
+  'you',
+  'that',
+  'for',
+  'on',
+  'with',
+  'we',
+  'are',
+  'this',
+  'be',
+  'have',
+  'from',
+  'not',
+  'but',
+  'what',
+  'all',
+  'can',
+  'your',
+  'our',
+  'my',
+  'so',
+  'just',
+  'like',
+  'know',
+  'one',
+  'now',
+  'out',
+  'up',
+  'will',
+  'they',
+  'there',
+  'here',
+  'was',
+  'were',
+  'do',
+  'dont',
+  'its',
+])
+
+const ENGLISH_MIN_LETTERS = 20
+const ENGLISH_MIN_WORDS = 10
+const ENGLISH_ASCII_LETTER_RATIO = 0.95
+const ENGLISH_STOPWORD_RATIO = 0.15
+
+/**
+ * Heuristic check for English subtitle text, used to recover when YouTube
+ * mislabels an English ASR track as another language (e.g. `lang=th` on music
+ * videos). Requires both >=95% ASCII letters (excluding non-English scripts and
+ * heavily accented Latin scripts) and >=15% common English function words
+ * (excluding pure-ASCII non-English languages like Indonesian or Dutch).
+ */
+export function looksLikeEnglish(tokens: TimedToken[]): boolean {
+  let totalLetters = 0
+  let asciiLetters = 0
+  let totalWords = 0
+  let stopwordHits = 0
+
+  for (const t of tokens) {
+    // Strip bracketed stage tags like [Music] / [Applause]
+    const cleaned = t.text.replace(/\[[^\]]*\]/g, ' ')
+    for (const ch of cleaned) {
+      if (/\p{L}/u.test(ch)) {
+        totalLetters++
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+          asciiLetters++
+        }
+      }
+    }
+    for (const raw of cleaned.split(/\s+/)) {
+      const word = raw.toLowerCase().replace(/[^a-z]/g, '')
+      if (!word) continue
+      totalWords++
+      if (ENGLISH_STOPWORDS.has(word)) {
+        stopwordHits++
+      }
+    }
+  }
+
+  if (totalLetters < ENGLISH_MIN_LETTERS || totalWords < ENGLISH_MIN_WORDS) {
+    return false
+  }
+  return (
+    asciiLetters / totalLetters >= ENGLISH_ASCII_LETTER_RATIO &&
+    stopwordHits / totalWords >= ENGLISH_STOPWORD_RATIO
+  )
+}
+
 /**
  * Determine if subtitles are missing punctuation.
  *
@@ -145,16 +242,23 @@ export function resolveSubtitleTrack(params: {
   }
 
   if (kind === 'asr') {
-    if (lang === 'en' && hasMissingPunctuation(data, 'en')) {
-      return { lang, mode: 'sherpa-en' }
+    // YouTube occasionally mislabels English ASR tracks under another language
+    // code (e.g. `lang=th` on music videos), returning unpunctuated English
+    // words. Detect that from the actual text so it still gets punctuated.
+    const effectiveLang =
+      lang !== 'en' && looksLikeEnglish(data) ? 'en' : lang
+    if (effectiveLang === 'en') {
+      return hasMissingPunctuation(data, 'en')
+        ? { lang: 'en', mode: 'sherpa-en' }
+        : { lang: 'en', mode: 'sentences' }
     }
     // YouTube ASR for Japanese is only ~50% punctuated; the model is a no-op on
     // already-punctuated cues, so always route Japanese ASR through it.
-    if (lang === 'ja') {
-      return { lang, mode: 'cjk-punct-ja' }
+    if (effectiveLang === 'ja') {
+      return { lang: 'ja', mode: 'cjk-punct-ja' }
     }
     // Better auto-generated subtitles: already punctuated, just group.
-    return { lang, mode: 'sentences' }
+    return { lang: effectiveLang, mode: 'sentences' }
   }
 
   // Manual captions: events are already line-level cues.
