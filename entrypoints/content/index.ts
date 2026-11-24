@@ -23,9 +23,39 @@ import {
 import { mergeRestorationUpdate } from '@/lib/subtitles/restorationMerge'
 import { skipWhileRunning } from '@/lib/async-utils'
 import { mirrorNativeCaptionStyle } from './subtitleStyleMirror'
+import {
+  getActiveVideoId,
+  getVideoIdFromUrl,
+  isTimedtextForActiveVideo,
+  shouldResetSubtitleForVideo,
+  type ActiveVideoContext,
+} from '@/lib/subtitles/video-id'
 
 // Header to identify internal extension requests
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
+
+type MoviePlayerElement = Element & {
+  getVideoData?: () => { video_id?: string } | undefined
+}
+
+function getActivePlayerVideoId(): string | null {
+  const moviePlayer = document.querySelector(
+    '#movie_player',
+  ) as MoviePlayerElement | null
+  if (!moviePlayer) return null
+  const rect = moviePlayer.getBoundingClientRect()
+  if (rect.width === 0 || rect.height === 0) {
+    return null
+  }
+  return moviePlayer.getVideoData?.()?.video_id || null
+}
+
+function getActiveVideoContext(): ActiveVideoContext {
+  return {
+    urlVideoId: getVideoIdFromUrl(location.href),
+    playerVideoId: getActivePlayerVideoId(),
+  }
+}
 
 export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
@@ -35,6 +65,7 @@ export default defineContentScript({
   async main() {
     console.log('[BilingualTube] Content Script Loaded.')
     setupSubtitleInterception()
+    setupPageDataUpdatedListener()
     // Inject UI container script and mount React component (hidden by default)
     observeElement({
       selector: '#movie_player',
@@ -42,7 +73,6 @@ export default defineContentScript({
         console.log('[BilingualTube] Movie player element observed')
         setupSubtitleUI()
         setupVideoProgressListener()
-        // setupPageDataUpdatedListener()
         console.log('[BilingualTube] Content Script Initialized.')
       },
       root: document.documentElement,
@@ -64,12 +94,31 @@ function setupSubtitleInterception() {
         await next()
         return
       }
-      // Each time new subtitles are loaded, it means a new video is loaded, so we need to clear the previous subtitle data
-      if (store.subtitle) {
-        store.reset()
-        console.log('[BilingualTube] Subtitle store reset for new video.')
+      const searchParams = new URL(c.req.url).searchParams
+      const requestVideoId = searchParams.get('v')
+      const initialContext = getActiveVideoContext()
+      if (!isTimedtextForActiveVideo(requestVideoId, initialContext)) {
+        console.log(
+          `[BilingualTube] Ignoring timedtext for non-active video (v=${requestVideoId ?? '-'}, active=${getActiveVideoId(initialContext) ?? '-'}).`,
+        )
+        await next()
+        return
       }
+      const videoId = requestVideoId!
+      // Always reset before awaiting so any in-flight request or punctuation
+      // stream for a previous video/track is aborted immediately.
+      store.reset()
+      const signal = store.getSignal()
+      console.log(
+        `[BilingualTube] Subtitle store reset for video ${videoId}.`,
+      )
       await next()
+      if (
+        signal.aborted ||
+        !isTimedtextForActiveVideo(videoId, getActiveVideoContext())
+      ) {
+        return
+      }
       if (c.res.status !== 200) {
         console.error(
           '[BilingualTube] Subtitle fetch error: ',
@@ -79,6 +128,12 @@ function setupSubtitleInterception() {
         throw new Error('Subtitle fetch error: ' + c.res.status)
       }
       const resp = (await c.res.clone().json()) as GetTimedtextResp
+      if (
+        signal.aborted ||
+        !isTimedtextForActiveVideo(videoId, getActiveVideoContext())
+      ) {
+        return
+      }
       if (!resp.events) {
         console.error(
           '[BilingualTube] Subtitle response parse error: ',
@@ -88,7 +143,6 @@ function setupSubtitleInterception() {
           'Subtitle response parse error, see console for details.',
         )
       }
-      const searchParams = new URL(c.req.url).searchParams
       const rawLang = searchParams.get('lang')
       if (!rawLang) {
         console.error(
@@ -142,6 +196,7 @@ function setupSubtitleInterception() {
           // caps unpunctuated runs); the stream below progressively replaces
           // them with punctuation-restored text.
           store.setSubtitle({
+            videoId,
             lang,
             text: resp,
             cues: sentencesInSubtitles(data, lang),
@@ -150,16 +205,25 @@ function setupSubtitleInterception() {
           const options = await eventMessager.sendMessage(
             'getPunctuationOptions',
           )
+          if (
+            signal.aborted ||
+            !isTimedtextForActiveVideo(videoId, getActiveVideoContext())
+          ) {
+            console.log('[BilingualTube] Punctuation restoration aborted.')
+            return
+          }
           // Use streaming, update subtitles after each window is processed
-          const signal = store.getSignal()
           const stream =
             mode === 'sherpa-en'
               ? restorePunctuation(data, options)
               : restorePunctuationJa(data, options)
           for await (const processed of stream) {
-            if (signal.aborted) {
+            if (
+              signal.aborted ||
+              !isTimedtextForActiveVideo(videoId, getActiveVideoContext())
+            ) {
               console.log('[BilingualTube] Punctuation restoration aborted.')
-              throw new Error('Punctuation restoration aborted.')
+              return
             }
             const mergedCues = mergeRestorationUpdate(
               processed,
@@ -169,6 +233,7 @@ function setupSubtitleInterception() {
             )
 
             store.setSubtitle({
+              videoId,
               lang,
               text: resp,
               cues: mergedCues,
@@ -181,10 +246,18 @@ function setupSubtitleInterception() {
           }
           console.log('[BilingualTube] Auto-generated subtitles processed.')
         } catch (error) {
+          if (
+            signal.aborted ||
+            !isTimedtextForActiveVideo(videoId, getActiveVideoContext())
+          ) {
+            console.log('[BilingualTube] Punctuation restoration aborted.')
+            return
+          }
           console.error('[BilingualTube] Punctuation restoration failed:', error)
           // Use original data on failure
           data = sentencesInSubtitles(data, lang)
           store.setSubtitle({
+            videoId,
             lang,
             text: resp,
             cues: data,
@@ -197,6 +270,7 @@ function setupSubtitleInterception() {
         console.log('[BilingualTube] Clean subtitles, grouping into sentences.')
         data = sentencesInSubtitles(data, lang)
         store.setSubtitle({
+          videoId,
           lang,
           text: resp,
           cues: data,
@@ -205,6 +279,7 @@ function setupSubtitleInterception() {
       } else {
         // Manual captions: events are already line-level cues.
         store.setSubtitle({
+          videoId,
           lang,
           text: resp,
           cues: data,
@@ -232,6 +307,7 @@ function setupSubtitleUI() {
   }
   let currentCue: TranslationToken | null = null
   const clean = store.subscribe(async (currentTime) => {
+    const signal = store.getSignal()
     const cue = findMatchingSubtitle(store.subtitle?.cues || [], currentTime)
     const translationText = cue?.translated
 
@@ -245,10 +321,13 @@ function setupSubtitleUI() {
 
     if (cue) {
       const settings = await eventMessager.sendMessage('getSettings')
-      const displayMode = settings.displayMode ?? 'bilingual'
       // Simplified/Traditional Chinese conversion is implicitly translation-only:
       // same content, different characters, so bilingual display is meaningless.
       const isChineseConversion = await isChineseVariantConversion()
+      if (signal.aborted) {
+        return
+      }
+      const displayMode = settings.displayMode ?? 'bilingual'
       if (
         translationText &&
         (displayMode === 'translation-only' || isChineseConversion)
@@ -371,6 +450,7 @@ async function isChineseVariantConversion(): Promise<boolean> {
 // skipWhileRunning drops calls arriving while a translation batch is in
 // flight (stream yields and timeupdate can fire in the same tick).
 const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
+  const signal = store.getSignal()
   const cues = store.subtitle?.cues ?? []
   if (!shouldTriggerTranslation(cues, currentTime)) {
     return
@@ -380,6 +460,9 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
   if (await isSameLanguage()) {
     return
   }
+  if (signal.aborted) {
+    return
+  }
 
   const cuesToTranslate = getCuesToTranslate(cues, currentTime)
   if (cuesToTranslate.length === 0) return
@@ -387,11 +470,10 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
   try {
     console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
     const texts = cuesToTranslate.map((cue) => cue.text)
-    const signal = store.getSignal()
     const translations = await eventMessager.sendMessage('translate', texts)
     if (signal.aborted) {
       console.log('[BilingualTube] Translation aborted.')
-      throw new Error('Translation aborted.')
+      return
     }
 
     // Update translations of cues
@@ -403,6 +485,10 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
 
     console.log(`[BilingualTube] Translated ${cuesToTranslate.length} cues`)
   } catch (error) {
+    if (signal.aborted) {
+      console.log('[BilingualTube] Translation aborted.')
+      return
+    }
     console.error('[BilingualTube] Translation failed:', error)
     throw new Error(
       `Translation failed: ${
@@ -427,11 +513,18 @@ function setupVideoProgressListener() {
 
 function setupPageDataUpdatedListener() {
   const onPageDataUpdated = () => {
-    store.reset()
-    console.log('[BilingualTube] Page data updated, subtitle store reset.')
+    const activeVideoId = getActiveVideoId(getActiveVideoContext())
+    if (shouldResetSubtitleForVideo(store.subtitle?.videoId, activeVideoId)) {
+      store.reset()
+      console.log(
+        `[BilingualTube] Navigated to different video, subtitle store reset (active=${activeVideoId ?? '-'}).`,
+      )
+    }
   }
+  document.addEventListener('yt-navigate-finish', onPageDataUpdated)
   document.addEventListener('yt-page-data-updated', onPageDataUpdated)
   return () => {
+    document.removeEventListener('yt-navigate-finish', onPageDataUpdated)
     document.removeEventListener('yt-page-data-updated', onPageDataUpdated)
   }
 }

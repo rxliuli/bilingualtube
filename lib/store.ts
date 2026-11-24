@@ -6,6 +6,7 @@ export interface TranslationToken extends TimedToken {
 }
 
 type SubtitleEntry = {
+  videoId: string
   lang: string
   text: GetTimedtextResp
   cues: TranslationToken[]
@@ -42,6 +43,7 @@ class SubtitleStore {
     this.subtitle = null
     this.currentTime = 0
     this.abortController = new AbortController()
+    this.listeners.forEach((listener) => listener(0))
   }
   getSignal() {
     return this.abortController.signal
