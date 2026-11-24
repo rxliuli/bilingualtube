@@ -81,16 +81,21 @@ export function hasMissingPunctuation(
   let hasAnyPunct = false
   let run = 0
   for (const t of tokens) {
-    // Strip number-group commas ("20,000") and decimal points ("3.5")
-    // before checking
-    const text = t.text.trim().replace(/\d[.,]\d/g, '')
-    if (/[,?!]/.test(text)) {
-      hasAnyPunct = true
-    }
-    if (/[.,!?;]/.test(text)) {
-      run = 0
-    } else if (++run >= MAX_UNPUNCTUATED_RUN) {
-      return true
+    // Split multi-word (block-level) tokens into words so MAX_UNPUNCTUATED_RUN
+    // counts words consistently across both word-level and block-level ASR.
+    for (const rawWord of t.text.trim().split(/\s+/)) {
+      if (!rawWord) continue
+      // Strip number-group commas ("20,000") and decimal points ("3.5")
+      // before checking
+      const text = rawWord.replace(/\d[.,]\d/g, '')
+      if (/[,?!]/.test(text)) {
+        hasAnyPunct = true
+      }
+      if (/[.,!?;]/.test(text)) {
+        run = 0
+      } else if (++run >= MAX_UNPUNCTUATED_RUN) {
+        return true
+      }
     }
   }
   return !hasAnyPunct
@@ -218,10 +223,112 @@ function getSentenceSplitRule(lang: string): SentenceSplitRule {
 
 const TIME_GAP_THRESHOLD = 2
 
+// Common abbreviations whose trailing period does not terminate a sentence.
+const ABBREVIATION_END_RE = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e)\.$/i
+
+/**
+ * Interpolate timestamps across sub-segments of a single token proportionally
+ * by character length, preserving exact outer `start` and `end` bounds.
+ */
+function interpolateTokenParts(
+  token: TimedToken,
+  parts: string[],
+): TimedToken[] {
+  if (parts.length <= 1) {
+    return [token]
+  }
+  const duration = token.end - token.start
+  const totalChars = parts.reduce((sum, p) => sum + p.length, 0)
+  const out: TimedToken[] = []
+  let offset = 0
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+    if (!part) continue
+    const start =
+      i === 0 || totalChars === 0
+        ? token.start
+        : token.start + (duration * offset) / totalChars
+    offset += part.length
+    const end =
+      i === parts.length - 1 || totalChars === 0
+        ? token.end
+        : token.start + (duration * offset) / totalChars
+    out.push({ start, end, text: part })
+  }
+  return out
+}
+
+/**
+ * Split multi-sentence / multi-speaker block-level tokens (newer YouTube ASR
+ * tracks emit whole lines per `seg` with embedded `.!?` and `>>`) at internal
+ * sentence and speaker-change boundaries while leaving single-clause tokens
+ * untouched.
+ */
+export function splitBlockTokensAtSentenceBoundaries(
+  tokens: TimedToken[],
+  lang: string,
+): TimedToken[] {
+  if (CJK_LANGS.has(lang)) {
+    return tokens
+  }
+  const out: TimedToken[] = []
+  for (const token of tokens) {
+    if (!/\s/.test(token.text)) {
+      out.push(token)
+      continue
+    }
+    const rawParts = token.text
+      .split(/(?<=[.!?])\s+|\s+(?=>>)/)
+      .map((p) => p.trim())
+      .filter((p) => p !== '')
+    if (rawParts.length <= 1) {
+      out.push(token)
+      continue
+    }
+    // Re-attach segments falsely split after common abbreviations (e.g. "Dr. Bill")
+    // unless the following segment explicitly starts a new speaker (`>>`).
+    const parts: string[] = []
+    for (const part of rawParts) {
+      const prev = parts.at(-1)
+      if (prev && ABBREVIATION_END_RE.test(prev) && !part.startsWith('>>')) {
+        parts[parts.length - 1] = `${prev} ${part}`
+      } else {
+        parts.push(part)
+      }
+    }
+    out.push(...interpolateTokenParts(token, parts))
+  }
+  return out
+}
+
+/**
+ * Expand multi-word tokens into word-level tokens (keeping `>> word` and
+ * `[tag]` intact) with proportional timestamp interpolation. Required before
+ * feeding block-level ASR tracks to `sherpa-en`, which aligns predictions 1:1
+ * with input tokens.
+ */
+export function splitBlockTokensToWords(tokens: TimedToken[]): TimedToken[] {
+  const out: TimedToken[] = []
+  for (const token of tokens) {
+    if (!/\s/.test(token.text)) {
+      out.push(token)
+      continue
+    }
+    const parts = token.text.match(/(?:>>\s+)?(?:\[[^\]]+\]|\S+)/g)
+    if (!parts || parts.length <= 1) {
+      out.push(token)
+      continue
+    }
+    out.push(...interpolateTokenParts(token, parts))
+  }
+  return out
+}
+
 export function sentencesInSubtitles(
   tokens: TimedToken[],
   lang: string,
 ): TimedToken[] {
+  const normalizedTokens = splitBlockTokensAtSentenceBoundaries(tokens, lang)
   const rule = getSentenceSplitRule(lang)
   const sentences: TimedToken[] = []
   let current: TimedToken[] = []
@@ -243,8 +350,8 @@ export function sentencesInSubtitles(
     lastCommaIndex = -1
   }
 
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i]
+  for (let i = 0; i < normalizedTokens.length; i++) {
+    const t = normalizedTokens[i]
     if (!t) continue
 
     // Force split when there's a large time gap between tokens

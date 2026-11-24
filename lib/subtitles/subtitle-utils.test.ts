@@ -4,6 +4,8 @@ import {
   hasMissingPunctuation,
   resolveSubtitleTrack,
   sentencesInSubtitles,
+  splitBlockTokensAtSentenceBoundaries,
+  splitBlockTokensToWords,
 } from './subtitle-utils'
 import type { GetTimedtextResp, TimedtextEvent } from './youtube-types'
 import type { TimedToken } from './PunctuationRestorationModel'
@@ -595,6 +597,104 @@ describe('subtitle-utils', () => {
         b.text.length > a.text.length ? b : a,
       )
       expect(longest.text.length).toBeLessThanOrEqual(270)
+    })
+    // Regression: newer YouTube English ASR tracks (`exp=xpo,xpe`) emit
+    // whole multi-line / multi-speaker blocks in a single `seg` instead of
+    // word-level segs. Embedded `.!?` and `>>` must split into separate cues
+    // while sentences split across adjacent events still rejoin cleanly.
+    // https://www.youtube.com/watch?v=3YETsdE8p1M
+    it('should split block-level English ASR segs at internal sentence and speaker boundaries', async () => {
+      const resp = (await import('./assets/timedtext-3YETsdE8p1M.json'))
+        .default as GetTimedtextResp
+      const data = convertYoutubeToStandardFormat(resp)
+      expect(
+        resolveSubtitleTrack({ rawLang: 'en', tlang: null, kind: 'asr', data }),
+      ).toEqual({ lang: 'en', mode: 'sentences' })
+
+      const cues = sentencesInSubtitles(data, 'en')
+      const texts = cues.map((c) => c.text)
+
+      // Events 49-51: 4 speaker turns & 5 sentences spanning 3 block-level events
+      const yeahIdx = texts.findIndex(
+        (t, i) =>
+          t === '>> Yeah.' &&
+          texts[i + 1] ===
+            ">> You're going to have fun taking this guy's prince.",
+      )
+      expect(yeahIdx).toBeGreaterThanOrEqual(0)
+      expect(texts.slice(yeahIdx, yeahIdx + 5)).toEqual([
+        '>> Yeah.',
+        ">> You're going to have fun taking this guy's prince.",
+        '>> All right.',
+        'Please leave me the alone.',
+        '>> Can you imagine?',
+      ])
+
+      // Event 53: single seg containing two speaker turns and five sentences
+      const handIdx = texts.indexOf('>> Hey, need a hand?')
+      expect(handIdx).toBeGreaterThanOrEqual(0)
+      expect(texts.slice(handIdx, handIdx + 5)).toEqual([
+        '>> Hey, need a hand?',
+        '>> Oh.',
+        'Oh my god.',
+        'Yes.',
+        "You're a lifesaver.",
+      ])
+
+      // No cue may contain multiple speaker-change markers `>>`
+      const multiSpeaker = cues.filter(
+        (c) => c.text.indexOf('>>') !== c.text.lastIndexOf('>>'),
+      )
+      expect(multiSpeaker).toEqual([])
+
+      // Timestamps stay valid and monotonic across interpolated splits
+      for (const [i, cue] of cues.entries()) {
+        expect(cue.end).toBeGreaterThanOrEqual(cue.start)
+        const prev = cues[i - 1]
+        if (prev) {
+          expect(cue.start).toBeGreaterThanOrEqual(prev.end - 1e-9)
+        }
+      }
+    })
+    it('should preserve common abbreviations when splitting block-level tokens', () => {
+      const split = splitBlockTokensAtSentenceBoundaries(
+        [
+          {
+            start: 0,
+            end: 4,
+            text: 'Hey, Dr. Bill. Nice to see Mr. Smith! >> Hi.',
+          },
+        ],
+        'en',
+      )
+      expect(split.map((t) => t.text)).toEqual([
+        'Hey, Dr. Bill.',
+        'Nice to see Mr. Smith!',
+        '>> Hi.',
+      ])
+      expect(split[0]!.start).toBe(0)
+      expect(split.at(-1)!.end).toBe(4)
+    })
+    it('should detect long unpunctuated runs inside block-level tokens and expand them to words', () => {
+      const blocks: TimedToken[] = Array.from({ length: 6 }, (_, i) => ({
+        start: i * 5,
+        end: (i + 1) * 5,
+        text: 'this is a block of ten completely unpunctuated english words',
+      }))
+      // 6 blocks = 60 words >= MAX_UNPUNCTUATED_RUN (50), even with a leading comma
+      blocks[0]!.text = 'well, this is a block of ten unpunctuated words'
+      expect(hasMissingPunctuation(blocks, 'en')).toBe(true)
+
+      const words = splitBlockTokensToWords([
+        { start: 0, end: 10, text: '>> Hello [screaming and groaning] world' },
+      ])
+      expect(words.map((w) => w.text)).toEqual([
+        '>> Hello',
+        '[screaming and groaning]',
+        'world',
+      ])
+      expect(words[0]!.start).toBe(0)
+      expect(words.at(-1)!.end).toBe(10)
     })
   })
   describe('Japanese subtitle merge', () => {

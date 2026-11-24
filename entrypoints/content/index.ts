@@ -9,6 +9,7 @@ import {
   convertYoutubeToStandardFormat,
   resolveSubtitleTrack,
   sentencesInSubtitles,
+  splitBlockTokensToWords,
 } from '@/lib/subtitles/subtitle-utils'
 import {
   findMatchingSubtitle,
@@ -132,6 +133,11 @@ function setupSubtitleInterception() {
           console.log(
             `[BilingualTube] Auto-generated subtitles detected, using ${mode}`,
           )
+          // sherpa-en maps predictions 1:1 to input tokens; expand newer
+          // block-level ASR segs into word-level tokens so indices stay aligned.
+          if (mode === 'sherpa-en') {
+            data = splitBlockTokensToWords(data)
+          }
           // Show raw cues immediately while the model loads (hardMaxLength
           // caps unpunctuated runs); the stream below progressively replaces
           // them with punctuation-restored text.
