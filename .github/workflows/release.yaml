@@ -9,22 +9,28 @@ on:
     branches: [main]
     paths:
       - 'package.json'
+  workflow_dispatch:
 
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.version.outputs.changed }}
-      version: ${{ steps.version.outputs.version }}
+      changed: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.version.outputs.changed }}
+      version: ${{ github.event_name == 'workflow_dispatch' && steps.pkg.outputs.version || steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 2
       - name: Check version change
         id: version
+        if: github.event_name != 'workflow_dispatch'
         uses: rxliuli/version-check@v1
         with:
           file: ${{ env.DIRECTORY }}/package.json
+      - name: Read current version
+        id: pkg
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
 
   release:
     permissions:
@@ -34,11 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: 'pnpm'
+      - uses: rxliuli/setup-pnpm@v1
       - name: Install dependencies
         run: pnpm install
       - name: Zip extensions
@@ -88,11 +90,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: 'pnpm'
+      - uses: rxliuli/setup-pnpm@v1
       - name: Install dependencies
         run: pnpm install
 
