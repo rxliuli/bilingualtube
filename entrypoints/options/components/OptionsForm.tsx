@@ -69,7 +69,7 @@ export function OptionsForm() {
   const currentEngine = settings.engine ?? 'google'
 
   return (
-    <div className="mx-auto max-w-md p-4 space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
       <header className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">BilingualTube</h1>
@@ -86,15 +86,23 @@ export function OptionsForm() {
         <a
           href="https://discord.gg/gFhKUthc88"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
         >
-          <Button variant="outline" size="icon" aria-label="Join Discord">
-            <FaDiscord className="h-5 w-5 text-blue-500" />
+          <Button
+            variant="secondary"
+            className="px-2.5 sm:px-4"
+            aria-label="Join Group"
+          >
+            <FaDiscord className="h-4 w-4 text-indigo-500" />
+            <span className="hidden sm:inline">Join Group</span>
           </Button>
         </a>
       </header>
 
-      <form className="grid gap-6" onSubmit={(e) => e.preventDefault()}>
+      <form
+        className="grid gap-6 [&_[data-slot=native-select-wrapper]]:w-full"
+        onSubmit={(e) => e.preventDefault()}
+      >
         {/* Target Language - Always visible */}
         <div className="space-y-2">
           <Label htmlFor="to">Target Language</Label>
