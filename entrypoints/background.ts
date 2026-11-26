@@ -167,7 +167,4 @@ export default defineBackground(() => {
     }
   })
 
-  browser.action.onClicked.addListener(async () => {
-    await browser.runtime.openOptionsPage()
-  })
 })
