@@ -55,6 +55,100 @@ const CJK_PUNCT_RATIO_THRESHOLD = 0.05
  */
 const MAX_UNPUNCTUATED_RUN = 50
 
+/**
+ * Minimum word count for an unpunctuated span inside a partially punctuated
+ * track to be sent through `sherpa-en`. Slightly above the ~28-word ceiling of
+ * fully punctuated tracks so casual 30–49 word unpunctuated stretches inside
+ * an otherwise punctuated video are also restored without touching clean
+ * sentences.
+ */
+export const MIN_UNPUNCTUATED_SPAN_WORDS = 30
+
+/**
+ * Match bracketed stage/sound-effect tokens like `[Music]`, `[music]`,
+ * `[Applause]`, `[singing]`, `[music and singing]`, or `>> [music]`.
+ */
+const STAGE_TAG_TOKEN_RE = /^(?:>>\s*)?\[[^\]]+\]$/
+
+export function isStageTagToken(text: string): boolean {
+  return STAGE_TAG_TOKEN_RE.test(text.trim())
+}
+
+export interface TokenSpan {
+  /** Inclusive start index into the `tokens` array. */
+  start: number
+  /** Exclusive end index into the `tokens` array. */
+  end: number
+}
+
+/**
+ * Identify contiguous `[start, end)` token spans that need English punctuation
+ * restoration.
+ *
+ * - If the track has no non-number `[,?!]` at all (pure unpunctuated ASR),
+ *   returns a single span covering the entire track `[0, tokens.length)`.
+ * - If the track is partially punctuated (e.g. YouTube Gemini ASR or
+ *   interviews with punctuated host + unpunctuated guest sections), returns
+ *   only the unpunctuated runs with at least `minSpanWords` real words so
+ *   already-punctuated sentences stay 100% verbatim.
+ */
+export function findUnpunctuatedSpans(
+  tokens: TimedToken[],
+  minSpanWords: number = MIN_UNPUNCTUATED_SPAN_WORDS,
+): TokenSpan[] {
+  if (tokens.length === 0) return []
+
+  let hasAnyPunct = false
+  const spans: TokenSpan[] = []
+  let runStart = -1
+  let runWords = 0
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+    if (!token) continue
+    if (isStageTagToken(token.text)) {
+      continue
+    }
+
+    let tokenHasPunct = false
+    let tokenWords = 0
+    for (const rawWord of token.text.trim().split(/\s+/)) {
+      if (!rawWord || rawWord === '>>') continue
+      const text = rawWord.replace(/\d[.,]\d/g, '')
+      if (/[,?!]/.test(text)) {
+        hasAnyPunct = true
+      }
+      if (/[.,!?;]/.test(text)) {
+        tokenHasPunct = true
+      } else {
+        tokenWords++
+      }
+    }
+
+    if (tokenHasPunct) {
+      if (runStart >= 0 && runWords >= minSpanWords) {
+        spans.push({ start: runStart, end: i })
+      }
+      runStart = -1
+      runWords = 0
+    } else if (tokenWords > 0) {
+      if (runStart < 0) {
+        runStart = i
+      }
+      runWords += tokenWords
+    }
+  }
+
+  if (runStart >= 0 && runWords >= minSpanWords) {
+    spans.push({ start: runStart, end: tokens.length })
+  }
+
+  if (!hasAnyPunct) {
+    return [{ start: 0, end: tokens.length }]
+  }
+  return spans
+}
+
 // High-frequency English function words used to distinguish English from other
 // pure-ASCII Latin-script languages (e.g. Indonesian, Dutch, Malay) when
 // YouTube mislabels an English ASR track under another language code.

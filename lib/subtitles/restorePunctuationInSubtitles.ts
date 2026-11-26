@@ -6,39 +6,82 @@ import {
   type AnnotatedToken,
 } from './PunctuationRestorationModel'
 import { CjkPunctModel } from './CjkPunctModel'
+import { findUnpunctuatedSpans, isStageTagToken } from './subtitle-utils'
+
+const SPAN_CONTEXT_TOKENS = 10
+const SPEAKER_PREFIX_RE = /^(>>\s+)/
+
+interface ModelInputEntry {
+  origIdx: number
+  speakerPrefix: string
+  token: TimedToken
+}
 
 /**
- * Merge model annotations back into display text. Tracks can be partially
- * punctuated (e.g. interviews where only the anchor's speech is punctuated),
- * so tokens that already carry punctuation are kept verbatim — YouTube's own
- * punctuation and casing beat the model's re-annotation. For the rest, only
- * CAP (sentence-start) case predictions are honored: the model's UPPER/LOWER
- * predictions are noisy and would clobber YouTube's proper-noun casing.
+ * Merge a single model annotation back onto its exact original token.
+ *
+ * Only CAP (sentence-start) case predictions are honored: the model's
+ * UPPER/LOWER predictions are noisy and would clobber YouTube's proper-noun
+ * casing. Leading `>> ` speaker markers are preserved outside the capitalized
+ * word so `>> morning` + CAP renders as `>> Morning`.
  */
-function mapAnnotatedToTimed(
-  tokens: AnnotatedToken[],
-  originals: TimedToken[],
-): TimedToken[] {
-  return tokens.map((t, i) => {
-    // annotate() streams prefixes of `originals`, so every index has an
-    // original.
-    const original = originals[i]
-    if (!original) {
-      return t
+function applyAnnotationToOriginal(
+  annotated: AnnotatedToken,
+  original: TimedToken,
+  speakerPrefix: string,
+): TimedToken {
+  if (isStageTagToken(original.text) || /[.,!?]$/.test(original.text)) {
+    return original
+  }
+  const cased =
+    annotated.caseType === 'CAP'
+      ? annotated.text.charAt(0).toUpperCase() + annotated.text.slice(1)
+      : annotated.text
+  return {
+    ...original,
+    text: speakerPrefix + cased + annotated.punctuation,
+  }
+}
+
+/**
+ * Extract clean word tokens for `sherpa-en` from `tokens[start..end)`.
+ *
+ * - Pure stage-tag tokens (`[Music]`, `[music]`, `[singing]`, `>> [music]`,
+ *   etc.) are omitted so they never consume BPE budget, confuse the language
+ *   model, or receive spurious punctuation like `[music],`.
+ * - Leading `>> ` speaker prefixes are stripped before inference and restored
+ *   by `origIdx` afterwards so `>>` never becomes `<unk>` tokens or shifts word
+ *   predictions.
+ * - Existing trailing `[.,!?]+` are stripped so context tokens never double up
+ *   punctuation.
+ */
+function buildModelInputs(
+  tokens: TimedToken[],
+  start: number,
+  end: number,
+): ModelInputEntry[] {
+  const entries: ModelInputEntry[] = []
+  for (let i = start; i < end; i++) {
+    const original = tokens[i]
+    if (!original || isStageTagToken(original.text)) {
+      continue
     }
-    // Special handling for [Music] and [Applause] tags, keep unchanged
-    if (['[Music]', '[Applause]'].includes(original.text)) {
-      return { ...t, text: original.text }
+    const prefixMatch = SPEAKER_PREFIX_RE.exec(original.text)
+    const speakerPrefix = prefixMatch?.[1] ?? ''
+    const withoutPrefix = speakerPrefix
+      ? original.text.slice(speakerPrefix.length)
+      : original.text
+    const cleaned = withoutPrefix.replace(/[.,!?]+$/, '').trim()
+    if (!cleaned) {
+      continue
     }
-    if (/[.,!?]$/.test(original.text)) {
-      return { ...t, text: original.text }
-    }
-    const cased =
-      t.caseType === 'CAP'
-        ? t.text.charAt(0).toUpperCase() + t.text.slice(1)
-        : t.text
-    return { ...t, text: cased + t.punctuation }
-  })
+    entries.push({
+      origIdx: i,
+      speakerPrefix,
+      token: { ...original, text: cleaned },
+    })
+  }
+  return entries
 }
 
 interface PunctuationOptions {
@@ -112,30 +155,82 @@ export function getCjkModel(options: PunctuationOptions) {
 }
 
 /**
- * Streaming punctuation restoration using AsyncGenerator for window-by-window output
+ * Streaming punctuation restoration using AsyncGenerator for window-by-window
+ * output.
+ *
+ * For partially punctuated tracks (e.g. YouTube Gemini ASR with a few
+ * unpunctuated stretches), only the unpunctuated spans (plus a small window of
+ * surrounding context) are passed through `sherpa-en`. Already-punctuated
+ * regions stay 100% verbatim. Yields progressively longer prefixes of the
+ * full track so downstream `mergeRestorationUpdate` keeps index alignment
+ * invariant at every step.
  */
 export async function* restorePunctuation(
   tokens: TimedToken[],
   options?: PunctuationOptions,
 ): AsyncGenerator<TimedToken[], TimedToken[]> {
-  const model = await getSherpaModel(options)
-
-  // Strip existing trailing punctuation before feeding the model so it never
-  // doubles up (e.g. "2026." + predicted "." -> "2026.."). The original text
-  // is restored verbatim for those tokens in mapAnnotatedToTimed. Tokens that
-  // are pure punctuation stay unchanged to keep word alignment intact.
-  const stripped = tokens.map((t) => {
-    const text = t.text.replace(/[.,!?]+$/, '')
-    return text === '' ? t : { ...t, text }
-  })
-
-  let result: TimedToken[] = []
-  for await (const processed of model.annotate(stripped)) {
-    // annotate() yields prefixes of the input, so index i maps to tokens[i]
-    result = mapAnnotatedToTimed(processed, tokens)
-    yield result
+  if (tokens.length === 0) {
+    yield []
+    return []
   }
-  return result
+
+  const spans = findUnpunctuatedSpans(tokens)
+  if (spans.length === 0) {
+    const copy = tokens.slice()
+    yield copy
+    return copy
+  }
+
+  const model = await getSherpaModel(options)
+  const output = tokens.slice()
+  let lastYieldedFrontier = 0
+
+  for (const span of spans) {
+    const ctxStart = Math.max(0, span.start - SPAN_CONTEXT_TOKENS)
+    const ctxEnd = Math.min(tokens.length, span.end + SPAN_CONTEXT_TOKENS)
+    const entries = buildModelInputs(tokens, ctxStart, ctxEnd)
+    if (entries.length === 0) {
+      continue
+    }
+
+    const modelInputs = entries.map((e) => e.token)
+    let appliedCount = 0
+
+    for await (const processed of model.annotate(modelInputs)) {
+      let maxUpdatedOrigIdx = -1
+      for (let k = appliedCount; k < processed.length; k++) {
+        const entry = entries[k]
+        const annotated = processed[k]
+        if (!entry || !annotated) continue
+        if (entry.origIdx >= span.start && entry.origIdx < span.end) {
+          const original = tokens[entry.origIdx]
+          if (original) {
+            output[entry.origIdx] = applyAnnotationToOriginal(
+              annotated,
+              original,
+              entry.speakerPrefix,
+            )
+            maxUpdatedOrigIdx = entry.origIdx
+          }
+        }
+      }
+      appliedCount = processed.length
+
+      if (maxUpdatedOrigIdx >= 0) {
+        const frontier = Math.min(
+          span.end,
+          Math.max(lastYieldedFrontier, maxUpdatedOrigIdx + 1),
+        )
+        lastYieldedFrontier = frontier
+        yield output.slice(0, frontier)
+      }
+    }
+  }
+
+  if (lastYieldedFrontier < output.length) {
+    yield output.slice()
+  }
+  return output
 }
 
 /**

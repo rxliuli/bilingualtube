@@ -1,7 +1,9 @@
 import { assert, describe, expect, it } from 'vitest'
 import {
   convertYoutubeToStandardFormat,
+  findUnpunctuatedSpans,
   hasMissingPunctuation,
+  isStageTagToken,
   looksLikeEnglish,
   resolveSubtitleTrack,
   sentencesInSubtitles,
@@ -415,9 +417,9 @@ describe('subtitle-utils', () => {
 
       const targetIndex = r2.findLastIndex((t) => t.text.includes('share'))
       expect(r2[targetIndex]).toEqual({
-        start: 145.56,
+        start: 149.92,
         end: 159.239,
-        text: "Let me know Hing on my fair share of missions, you've been on one Spike and that's my fair share, Starlight.",
+        text: "You've been on one Spike, and that's my fair share Starlight.",
       } satisfies TimedToken)
     })
     // Should handle [laughter] and [applause] tags correctly
@@ -432,10 +434,14 @@ describe('subtitle-utils', () => {
       }
       const r2 = sentencesInSubtitles(r1!, 'en')
       const contents = r2.map((it) => it.text)
-      expect(contents)
-        .contain('Got the music in,')
-        .contains('[Applause]')
-        .contain('you, you did it Flutter Shot.')
+      const flutterIdx = contents.findIndex((c) => c.includes('Flutter Shot'))
+      expect(flutterIdx).toBeGreaterThan(2)
+      expect(contents.slice(flutterIdx - 3, flutterIdx + 1)).toEqual([
+        expect.stringMatching(/got the music in[.,]?$/i),
+        '[Applause]',
+        'you.',
+        expect.stringMatching(/you did it,? Flutter Shot\.?/i),
+      ])
     })
     // Should handle multiple consecutive >> started subtitles correctly
     it('Should handle multiple consecutive >> started subtitles correctly', async () => {
@@ -696,6 +702,105 @@ describe('subtitle-utils', () => {
       ])
       expect(words[0]!.start).toBe(0)
       expect(words.at(-1)!.end).toBe(10)
+    })
+    it('should identify stage tags and unpunctuated spans cleanly', () => {
+      expect(isStageTagToken('[Music]')).toBe(true)
+      expect(isStageTagToken('[music]')).toBe(true)
+      expect(isStageTagToken('[singing and music]')).toBe(true)
+      expect(isStageTagToken('>> [music]')).toBe(true)
+      expect(isStageTagToken('>> Hello')).toBe(false)
+      expect(isStageTagToken('hello')).toBe(false)
+
+      // Pure unpunctuated track -> single span covering the entire track
+      const bare: TimedToken[] = Array.from({ length: 10 }, (_, i) => ({
+        start: i,
+        end: i + 1,
+        text: 'hello',
+      }))
+      expect(findUnpunctuatedSpans(bare)).toEqual([{ start: 0, end: 10 }])
+
+      // Partially punctuated track -> only runs >= 30 words are selected
+      const partial: TimedToken[] = [
+        { start: 0, end: 1, text: 'Hello,' },
+        { start: 1, end: 2, text: 'world.' },
+        ...Array.from({ length: 35 }, (_, i) => ({
+          start: i + 2,
+          end: i + 3,
+          text: 'word',
+        })),
+        { start: 37, end: 38, text: 'done.' },
+        { start: 38, end: 39, text: 'Short' },
+        { start: 39, end: 40, text: 'sentence.' },
+      ]
+      expect(findUnpunctuatedSpans(partial)).toEqual([{ start: 2, end: 37 }])
+    })
+    // Regression: 1-hour YouTube Gemini ASR track (`variant=gemini`) that is
+    // ~90% cleanly punctuated but contains a 10-minute unpunctuated stretch
+    // (runs up to 211 words) plus `>> word` and lowercase `[music]`/`[singing]`
+    // tags. Previously window 48 shrank to 30 tokens and dropped 30 tokens,
+    // shifting `originals[i]` vs `processed[i]` for the rest of the video and
+    // mangling 37:35 into "Well, Yeah, more powerful than your measly little
+    // Alicorn, Amulet Ha Nothing's more powerful than [music],".
+    // https://www.youtube.com/watch?v=L73XYmYTmL8
+    it('should preserve clean punctuation and restore bare runs without dropping or shifting tokens on L73XYmYTmL8', async () => {
+      const resp = (await import('./assets/timedtext-L73XYmYTmL8.json'))
+        .default as GetTimedtextResp
+      const data = splitBlockTokensToWords(convertYoutubeToStandardFormat(resp))
+      expect(
+        resolveSubtitleTrack({ rawLang: 'en', tlang: null, kind: 'asr', data }),
+      ).toEqual({ lang: 'en', mode: 'sherpa-en' })
+
+      let restored: TimedToken[] = []
+      let prevLen = 0
+      for await (const processed of restorePunctuation(data)) {
+        expect(processed.length).toBeGreaterThanOrEqual(prevLen)
+        expect(processed.length).toBeLessThanOrEqual(data.length)
+        prevLen = processed.length
+        restored = processed
+      }
+
+      // Strict 1:1 token and timestamp preservation across the entire 1-hour track
+      expect(restored.length).toBe(data.length)
+      for (let i = 0; i < data.length; i++) {
+        expect(restored[i]!.start).toBe(data[i]!.start)
+        expect(restored[i]!.end).toBe(data[i]!.end)
+        if (isStageTagToken(data[i]!.text)) {
+          expect(restored[i]!.text).toBe(data[i]!.text)
+        }
+      }
+
+      const cues = sentencesInSubtitles(restored, 'en')
+      const texts = cues.map((c) => c.text)
+
+      // 37:25–37:45 region must retain YouTube's clean punctuation verbatim
+      expect(texts).toContain(
+        'Well, Yeah, and I thought you might want to see what a real magical amulet [music] looks like.',
+      )
+      expect(texts).toContain('Zecora gave it to me.')
+      expect(texts).toContain(
+        "It's from beyond the Everfree Forest, and it's way more powerful than your measly little Alicorn Amulet.",
+      )
+      expect(texts).toContain('Ha!')
+      // The 121-char sentence exceeds maxLength (100) and splits cleanly at its comma
+      expect(texts).toContain(
+        "Nothing's more powerful than [music] the Alicorn Amulet,",
+      )
+      expect(texts).toContain(
+        "and no pony's more powerful than the great and powerful Trixie!",
+      )
+
+      // Stage tags must never receive spurious punctuation like `[music],`
+      expect(texts.some((t) => /\[[^\]]+\][.,!?]/.test(t))).toBe(false)
+
+      // The 211-word unpunctuated episode (1350s–1490s) must be punctuated & split
+      const unpunctEpisodeCues = cues.filter(
+        (c) => c.start >= 1350 && c.end <= 1495,
+      )
+      expect(unpunctEpisodeCues.length).toBeGreaterThan(8)
+      const longestInEpisode = unpunctEpisodeCues.reduce((a, b) =>
+        b.text.length > a.text.length ? b : a,
+      )
+      expect(longestInEpisode.text.length).toBeLessThanOrEqual(250)
     })
   })
   describe('Japanese subtitle merge', () => {

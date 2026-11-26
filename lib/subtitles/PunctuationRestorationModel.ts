@@ -79,87 +79,34 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * Map BPE tokens back to original words using two-pointer matching
-   */
-  private matchBPEToWords(
-    words: string[],
-    bpeTokenIds: number[],
-    validIds: number[],
-  ): Map<number, number[]> {
-    // Returns: wordIndex -> [bpeTokenIndices]
-    const wordToBPE = new Map<number, number[]>()
-
-    if (!this.tokenizer) throw new Error('Tokenizer not loaded')
-
-    let wordIdx = 0
-    let bpeIdx = 0
-
-    // Skip start token <s>
-    if (bpeTokenIds[0] === this.tokenizer.pieceToId('<s>')) {
-      bpeIdx = 1
-    }
-
-    while (wordIdx < words.length && bpeIdx < bpeTokenIds.length) {
-      // Skip end token
-      if (bpeTokenIds[bpeIdx] === this.tokenizer.pieceToId('</s>')) {
-        break
-      }
-
-      const bpeIndices: number[] = []
-      const word = words[wordIdx]
-      if (word === undefined) break
-      const currentWord = word.toLowerCase()
-
-      // Accumulate BPE tokens until matching current word
-      let accumulatedText = ''
-
-      while (bpeIdx < bpeTokenIds.length) {
-        const bpeTokenId = bpeTokenIds[bpeIdx]
-        if (bpeTokenId === undefined) break
-        const bpeToken = this.tokenizer.decode([bpeTokenId])
-        accumulatedText += bpeToken
-
-        // Only record valid token indices
-        if (validIds[bpeIdx] === 1) {
-          bpeIndices.push(bpeIdx)
-        }
-
-        bpeIdx++
-
-        // Check if it matches current word (remove spaces and ▁ symbol)
-        const normalized = accumulatedText.replace(/[▁\s]/g, '').toLowerCase()
-        if (normalized === currentWord) {
-          break
-        }
-
-        // Prevent infinite loop
-        if (bpeIdx >= bpeTokenIds.length) break
-      }
-
-      if (bpeIndices.length > 0) {
-        wordToBPE.set(wordIdx, bpeIndices)
-      }
-
-      wordIdx++
-    }
-
-    return wordToBPE
-  }
-
-  /**
-   * Map predictions back to original tokens (simplified: direct index mapping)
+   * Map model predictions back to input tokens while accounting for tokens that
+   * expand into multiple whitespace-separated words during BPE encoding (e.g.
+   * `>> Morning`, `going to`). Each token consumes exactly `subwordCounts[i]`
+   * prediction slots, so subsequent tokens never drift out of alignment.
    */
   private mapPredictionsToTokens(
     tokens: TimedToken[],
-    _wordToBPE: Map<number, number[]>,
+    subwordCounts: number[],
     casePred: number[],
     punctPred: number[],
   ): AnnotatedToken[] {
-    return tokens.map((token, wordIdx) => {
-      // Use word index directly to get predictions (model output already excludes <s> and </s>)
-      // Prediction indices directly correspond to word indices
-      const caseType = classId(casePred[wordIdx])
-      const punctType = classId(punctPred[wordIdx])
+    let predIdx = 0
+    return tokens.map((token, i) => {
+      const count = subwordCounts[i] ?? 0
+      if (count <= 0) {
+        return {
+          ...token,
+          casedText: token.text,
+          punctuation: '',
+          caseType: 'MIX',
+          punctType: 'NONE',
+        }
+      }
+      // First subword supplies leading capitalization; last subword supplies
+      // trailing punctuation.
+      const caseType = classId(casePred[predIdx])
+      const punctType = classId(punctPred[predIdx + count - 1])
+      predIdx += count
 
       return {
         ...token,
@@ -172,7 +119,29 @@ export class PunctuationRestorationModel {
   }
 
   /**
-   * Streaming processing: use AsyncGenerator for window-by-window output
+   * Count BPE tokens contributed by each input `TimedToken` (excluding `<s>`
+   * and `</s>`).
+   */
+  private measureTokenBpeLengths(tokens: TimedToken[]): number[] {
+    return tokens.map((token) => {
+      const words = token.text
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0)
+      let len = 0
+      for (const word of words) {
+        len += this.tokenizer.encodeWord(word).length
+      }
+      return len
+    })
+  }
+
+  /**
+   * Streaming processing: use AsyncGenerator for window-by-window output.
+   *
+   * Invariant: every input token `0..tokens.length - 1` is emitted exactly once
+   * in exact order (`results.length === tokens.length` on completion), even
+   * when long/OOV words shrink a window to fewer than `overlap` tokens.
    */
   async *annotate(
     tokens: TimedToken[],
@@ -180,59 +149,79 @@ export class PunctuationRestorationModel {
     if (!this.session || !this.tokenizer) {
       throw new Error('Model not loaded. Call load() first.')
     }
+    if (tokens.length === 0) {
+      yield []
+      return []
+    }
 
-    // First tokenize the entire text to determine if segmentation is needed
-    const fullText = tokens.map((t) => t.text).join(' ')
-    const { tokenIds } = this.tokenizer.encode(fullText)
+    const tokenBpeLens = this.measureTokenBpeLengths(tokens)
+    const totalBpeTokens =
+      2 + tokenBpeLens.reduce((sum, len) => sum + len, 0)
 
     // If BPE token count is within limit, process directly
-    if (tokenIds.length <= this.maxTokensPerWindow) {
+    if (totalBpeTokens <= this.maxTokensPerWindow) {
       const results = await this.processWindow(tokens)
       yield results
       return results
     }
 
-    // Sliding window processing
-    const results: AnnotatedToken[] = []
-    let wordStart = 0
-
-    while (wordStart < tokens.length) {
-      // Calculate window boundaries
-      let wordEnd = wordStart
-      let currentTokenCount = 0
-
-      while (
-        wordEnd < tokens.length &&
-        currentTokenCount < this.maxTokensPerWindow
-      ) {
-        const testText = tokens
-          .slice(wordStart, wordEnd + 1)
-          .map((t) => t.text)
-          .join(' ')
-        const { tokenIds } = this.tokenizer.encode(testText)
-
-        if (tokenIds.length > this.maxTokensPerWindow) {
+    const findWindowEnd = (startIdx: number): number => {
+      let endIdx = startIdx
+      let bpeCount = 2 // <s> + </s>
+      while (endIdx < tokens.length) {
+        const nextLen = tokenBpeLens[endIdx] ?? 0
+        if (bpeCount + nextLen > this.maxTokensPerWindow) {
           break
         }
-
-        currentTokenCount = tokenIds.length
-        wordEnd++
+        bpeCount += nextLen
+        endIdx++
       }
+      return endIdx
+    }
 
-      if (wordEnd === wordStart) {
-        wordEnd = wordStart + 1
+    // Sliding window processing anchored on `nextEmitIdx` so no token can ever
+    // be dropped or duplicated regardless of window size.
+    const results: AnnotatedToken[] = []
+    const overlapWords = Math.floor(this.overlap / 2)
+    let nextEmitIdx = 0
+
+    while (nextEmitIdx < tokens.length) {
+      let wordStart = Math.max(0, nextEmitIdx - overlapWords)
+      let wordEnd = findWindowEnd(wordStart)
+
+      // If left context filled the window before reaching `nextEmitIdx`, shrink
+      // left context until `tokens[nextEmitIdx]` fits.
+      while (wordEnd <= nextEmitIdx && wordStart < nextEmitIdx) {
+        wordStart = Math.min(
+          nextEmitIdx,
+          wordStart + Math.max(1, Math.ceil((nextEmitIdx - wordStart) / 2)),
+        )
+        wordEnd = findWindowEnd(wordStart)
+      }
+      // Single token longer than maxTokensPerWindow: process it alone (truncated
+      // to maxSeqLength inside processWindow).
+      if (wordEnd <= nextEmitIdx) {
+        wordStart = nextEmitIdx
+        wordEnd = nextEmitIdx + 1
       }
 
       const windowTokens = tokens.slice(wordStart, wordEnd)
       const windowResults = await this.processWindow(windowTokens)
 
-      // Handle overlap: only keep non-overlapping parts
-      const overlapWords = Math.floor(this.overlap / 2)
-      const keepStart = wordStart === 0 ? 0 : overlapWords
-      const keepEnd =
-        wordEnd >= tokens.length
-          ? windowResults.length
-          : windowResults.length - overlapWords
+      const keepStart = nextEmitIdx - wordStart
+      const available = windowResults.length - keepStart
+      let keepEnd: number
+      if (wordEnd >= tokens.length) {
+        keepEnd = windowResults.length
+      } else {
+        // Keep full right-context overlap when possible; otherwise shrink right
+        // overlap so every window emits at least 1 new token.
+        const rightOverlap =
+          available > overlapWords
+            ? overlapWords
+            : Math.floor((available - 1) / 2)
+        keepEnd = windowResults.length - rightOverlap
+      }
 
       for (let i = keepStart; i < keepEnd; i++) {
         const windowResult = windowResults[i]
@@ -240,22 +229,13 @@ export class PunctuationRestorationModel {
           results.push(windowResult)
         }
       }
+      nextEmitIdx += keepEnd - keepStart
 
       yield [...results]
 
-      // The final window reached the end of the input; stop before the
-      // overlap rewind below re-processes and re-emits the tail tokens.
-      if (wordEnd >= tokens.length) {
-        break
+      if (nextEmitIdx < tokens.length) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
       }
-
-      // Move window
-      wordStart = wordEnd - overlapWords * 2
-      if (wordStart <= wordEnd - windowTokens.length) {
-        wordStart = wordEnd
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     return results
@@ -269,10 +249,30 @@ export class PunctuationRestorationModel {
       throw new Error('Model not loaded. Call load() first.')
     }
 
-    const text = tokens.map((t) => t.text).join(' ')
-    const words = tokens.map((t) => t.text)
+    const tokenIds: number[] = [this.tokenizer.pieceToId('<s>')]
+    const wordBoundaries: number[] = [0]
+    const subwordCounts: number[] = []
 
-    const { tokenIds, wordBoundaries } = this.tokenizer.encode(text)
+    for (const token of tokens) {
+      const words = token.text
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0)
+      let encodedWords = 0
+      for (const word of words) {
+        const ids = this.tokenizer.encodeWord(word)
+        if (ids.length === 0) continue
+        wordBoundaries.push(tokenIds.length)
+        for (const id of ids) {
+          tokenIds.push(id)
+        }
+        encodedWords++
+      }
+      subwordCounts.push(encodedWords)
+    }
+
+    wordBoundaries.push(tokenIds.length)
+    tokenIds.push(this.tokenizer.pieceToId('</s>'))
 
     // Create valid_ids (only mark word boundary positions)
     const validIds = new Array(this.maxSeqLength).fill(0)
@@ -391,16 +391,13 @@ export class PunctuationRestorationModel {
       punctPred.push(maxPunctIdx)
     }
 
-    // Two-pointer matching: BPE tokens -> original words
-    const wordToBPE = this.matchBPEToWords(words, paddedTokenIds, validIds)
-
     if (tokenIds.length > this.maxSeqLength) {
       console.warn(
         `⚠️ Input text is too long! Truncated from ${tokenIds.length} to ${this.maxSeqLength} tokens.`,
       )
     }
 
-    return this.mapPredictionsToTokens(tokens, wordToBPE, casePred, punctPred)
+    return this.mapPredictionsToTokens(tokens, subwordCounts, casePred, punctPred)
   }
 
   /**
