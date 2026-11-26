@@ -34,6 +34,8 @@ import {
 
 // Header to identify internal extension requests
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
+let subtitlesEnabled = false
+let settingsReadVersion = 0
 
 type MoviePlayerElement = Element & {
   getVideoData?: () => { video_id?: string } | undefined
@@ -530,18 +532,58 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
   }
 })
 
+async function refreshSubtitleSettings() {
+  const readVersion = ++settingsReadVersion
+  const settings = await eventMessager.sendMessage('getSettings')
+
+  // Ignore an older read if another settings update has already started.
+  if (readVersion !== settingsReadVersion) {
+    return
+  }
+
+  subtitlesEnabled = settings.enabled ?? true
+
+  document.documentElement.setAttribute(
+    'data-bilingualtube-enabled',
+    String(subtitlesEnabled),
+  )
+
+  translationGate.reset()
+  store.setTranslationError(null)
+
+  // Refresh the current subtitle even when the video is paused.
+  store.setCurrentTime(store.currentTime)
+
+  if (subtitlesEnabled && store.subtitle) {
+    void triggerTranslation(store.currentTime)
+  }
+}
+
 function setupTranslationRecoveryListeners() {
-  eventMessager.onMessage('settingsChanged', () => {
-    translationGate.reset()
-    store.setTranslationError(null)
-    if (store.subtitle) {
-      triggerTranslation(store.currentTime)
+  const refreshSettings = async () => {
+    try {
+      await refreshSubtitleSettings()
+    } catch (error) {
+      console.error('[BilingualTube] Failed to refresh settings:', error)
     }
-  })
+  }
+
+  // Apply the saved setting when the page first loads.
+  void refreshSettings()
+
+  // Apply changes made through the extension popup.
+  eventMessager.onMessage('settingsChanged', refreshSettings)
+
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return
+    if (
+      !subtitlesEnabled ||
+      document.visibilityState !== 'visible'
+    ) {
+      return
+    }
+
     if (translationGate.allowReprobe() && store.subtitle) {
-      triggerTranslation(store.currentTime)
+      void triggerTranslation(store.currentTime)
     }
   })
 }
