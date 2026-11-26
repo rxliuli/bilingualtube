@@ -474,52 +474,74 @@ const translationGate = createTranslationGate({ balanceMode: 'halt' })
 // skipWhileRunning drops calls arriving while a translation batch is in
 // flight (stream yields and timeupdate can fire in the same tick).
 const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
-  if (!translationGate.canAttempt()) {
+  // Do not start translation while the extension is disabled.
+  if (!subtitlesEnabled || !translationGate.canAttempt()) {
     return
   }
+
   const signal = store.getSignal()
-  const cues = store.subtitle?.cues ?? []
-  if (!shouldTriggerTranslation(cues, currentTime)) {
-    return
-  }
+  const requestVersion = settingsReadVersion
 
-  // Check if source and target languages are the same
-  if (await isSameLanguage()) {
-    return
-  }
-  if (signal.aborted) {
-    return
-  }
-
-  const cuesToTranslate = getCuesToTranslate(cues, currentTime)
-  if (cuesToTranslate.length === 0) return
+  // A video change or settings update makes this task outdated.
+  const isOutdated = () =>
+    signal.aborted ||
+    !subtitlesEnabled ||
+    requestVersion !== settingsReadVersion
 
   try {
-    console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
+    const cues = store.subtitle?.cues ?? []
+
+    if (!shouldTriggerTranslation(cues, currentTime)) {
+      return
+    }
+
+    const sameLanguage = await isSameLanguage()
+
+    // Settings may have changed while we were waiting.
+    if (isOutdated() || sameLanguage) {
+      return
+    }
+
+    const cuesToTranslate = getCuesToTranslate(cues, currentTime)
+
+    if (cuesToTranslate.length === 0) {
+      return
+    }
+
+    console.log(
+      `[BilingualTube] Translating ${cuesToTranslate.length} cues`,
+    )
+
     const texts = cuesToTranslate.map((cue) => cue.text)
     const translations = await eventMessager.sendMessage('translate', texts)
-    if (signal.aborted) {
-      console.log('[BilingualTube] Translation aborted.')
+
+    // Ignore results from a task started before disabling or changing settings.
+    if (isOutdated()) {
       return
     }
 
     translationGate.recordSuccess()
     store.setTranslationError(null)
-    // Update translations of cues
+
     cuesToTranslate.forEach((cue, index) => {
       cue.translated = translations[index]
     })
-    // Trigger subtitle display update
+
     store.setCurrentTime(store.currentTime)
 
-    console.log(`[BilingualTube] Translated ${cuesToTranslate.length} cues`)
+    console.log(
+      `[BilingualTube] Translated ${cuesToTranslate.length} cues`,
+    )
   } catch (error) {
-    if (signal.aborted) {
-      console.log('[BilingualTube] Translation aborted.')
+    if (isOutdated()) {
       return
     }
-    const { halted, delayMs, message } = translationGate.recordFailure(error)
+
+    const { halted, delayMs, message } =
+      translationGate.recordFailure(error)
+
     store.setTranslationError(message)
+
     if (halted) {
       console.error(
         `[BilingualTube] Translation paused (${message}). Switch engine, reconnect, or top up to resume.`,
@@ -529,9 +551,20 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
         `[BilingualTube] Translation failed (${message}); retrying after ${Math.round(delayMs / 1000)}s.`,
       )
     }
+  } finally {
+    // A settings update may have tried to restart translation while this
+    // task was still running. Retry after skipWhileRunning releases its lock.
+    if (
+      subtitlesEnabled &&
+      requestVersion !== settingsReadVersion &&
+      store.subtitle
+    ) {
+      setTimeout(() => {
+        void triggerTranslation(store.currentTime)
+      }, 0)
+    }
   }
 })
-
 async function refreshSubtitleSettings() {
   const readVersion = ++settingsReadVersion
   const settings = await eventMessager.sendMessage('getSettings')
