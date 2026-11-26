@@ -50,9 +50,14 @@ function getTranslator(settings: Settings) {
 
 async function translate(texts: string[]): Promise<string[]> {
   const settings = await getMergedSettings()
+
+  if (settings.enabled === false) {
+    return []
+  }
+
   const targetLang = settings.to!
   const engine = settings.engine!
-
+  
   const results: string[] = []
   const uncachedIndices: number[] = []
   const uncachedTexts: string[] = []
@@ -81,9 +86,16 @@ async function translate(texts: string[]): Promise<string[]> {
     )
   }
 
-  const translator = getTranslator(settings)
+    const translator = getTranslator(settings)
   let translated: string[]
   try {
+    // Settings may have changed while reading the translation cache.
+    const latestSettings = await getMergedSettings()
+
+    if (latestSettings.enabled === false) {
+      return []
+    }
+
     translated = await translator.translate(uncachedTexts, targetLang)
     translationGate.recordSuccess()
   } catch (error) {
