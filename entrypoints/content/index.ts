@@ -22,6 +22,7 @@ import {
 } from '@/lib/subtitles/restorePunctuationInSubtitles'
 import { mergeRestorationUpdate } from '@/lib/subtitles/restorationMerge'
 import { skipWhileRunning } from '@/lib/async-utils'
+import { createTranslationGate } from '@/lib/translate/backoff'
 import { mirrorNativeCaptionStyle } from './subtitleStyleMirror'
 import {
   getActiveVideoId,
@@ -66,6 +67,7 @@ export default defineContentScript({
     console.log('[BilingualTube] Content Script Loaded.')
     setupSubtitleInterception()
     setupPageDataUpdatedListener()
+    setupTranslationRecoveryListeners()
     // Inject UI container script and mount React component (hidden by default)
     observeElement({
       selector: '#movie_player',
@@ -108,6 +110,7 @@ function setupSubtitleInterception() {
       // Always reset before awaiting so any in-flight request or punctuation
       // stream for a previous video/track is aborted immediately.
       store.reset()
+      translationGate.reset()
       const signal = store.getSignal()
       console.log(
         `[BilingualTube] Subtitle store reset for video ${videoId}.`,
@@ -306,15 +309,18 @@ function setupSubtitleUI() {
     subtitleOverlay.update('BilingualTube Subtitle Loaded')
   }
   let currentCue: TranslationToken | null = null
+  let currentError: string | null = null
   const clean = store.subscribe(async (currentTime) => {
     const signal = store.getSignal()
     const cue = findMatchingSubtitle(store.subtitle?.cues || [], currentTime)
     const translationText = cue?.translated
+    const errorText = translationText ? null : store.translationError
 
     // Check if there are changes
     if (
       cue?.text === currentCue?.text &&
-      translationText === currentCue?.translated
+      translationText === currentCue?.translated &&
+      errorText === currentError
     ) {
       return
     }
@@ -335,14 +341,21 @@ function setupSubtitleUI() {
         // Translation-only: hide the original line. Falls through to bilingual
         // when no translation exists yet (e.g. still translating, or same lang).
         subtitleOverlay.update(translationText)
-      } else {
-        // Normal case: show original and translation (if available)
+      } else if (translationText) {
+        // Normal case: show original and translation
         subtitleOverlay.update(cue.text, translationText)
+      } else if (errorText) {
+        // Show actionable translation error beneath the original caption so
+        // the user knows why translations stopped (e.g. 402 low balance).
+        subtitleOverlay.update(cue.text, errorText, { isError: true })
+      } else {
+        subtitleOverlay.update(cue.text)
       }
     } else {
       subtitleOverlay.update('')
     }
     currentCue = cue ? JSON.parse(JSON.stringify(cue)) : null
+    currentError = errorText
   })
   return () => {
     document.head.removeChild(style)
@@ -386,8 +399,13 @@ function createSubtitleOverlay() {
 
   return {
     element: container,
-    update(original: string, translated?: string) {
+    update(
+      original: string,
+      translated?: string,
+      options?: { isError?: boolean },
+    ) {
       originalDiv.textContent = original
+      translatedDiv.classList.toggle('subtitle-error', Boolean(options?.isError))
       if (translated) {
         translatedDiv.textContent = translated
         translatedDiv.style.display = 'block'
@@ -447,9 +465,16 @@ async function isChineseVariantConversion(): Promise<boolean> {
   )
 }
 
+// Gates automatic retries so `onVideoProgress` (~4x/sec) doesn't hammer the
+// backend when credits run out (402), auth fails (401), or rate limits trip (429).
+const translationGate = createTranslationGate({ balanceMode: 'halt' })
+
 // skipWhileRunning drops calls arriving while a translation batch is in
 // flight (stream yields and timeupdate can fire in the same tick).
 const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
+  if (!translationGate.canAttempt()) {
+    return
+  }
   const signal = store.getSignal()
   const cues = store.subtitle?.cues ?? []
   if (!shouldTriggerTranslation(cues, currentTime)) {
@@ -476,6 +501,8 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
       return
     }
 
+    translationGate.recordSuccess()
+    store.setTranslationError(null)
     // Update translations of cues
     cuesToTranslate.forEach((cue, index) => {
       cue.translated = translations[index]
@@ -489,14 +516,35 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
       console.log('[BilingualTube] Translation aborted.')
       return
     }
-    console.error('[BilingualTube] Translation failed:', error)
-    throw new Error(
-      `Translation failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    )
+    const { halted, delayMs, message } = translationGate.recordFailure(error)
+    store.setTranslationError(message)
+    if (halted) {
+      console.error(
+        `[BilingualTube] Translation paused (${message}). Switch engine, reconnect, or top up to resume.`,
+      )
+    } else {
+      console.error(
+        `[BilingualTube] Translation failed (${message}); retrying after ${Math.round(delayMs / 1000)}s.`,
+      )
+    }
   }
 })
+
+function setupTranslationRecoveryListeners() {
+  eventMessager.onMessage('settingsChanged', () => {
+    translationGate.reset()
+    store.setTranslationError(null)
+    if (store.subtitle) {
+      triggerTranslation(store.currentTime)
+    }
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    if (translationGate.allowReprobe() && store.subtitle) {
+      triggerTranslation(store.currentTime)
+    }
+  })
+}
 
 function setupVideoProgressListener() {
   const moviePlayer = document.querySelector('#movie_player')
@@ -516,6 +564,7 @@ function setupPageDataUpdatedListener() {
     const activeVideoId = getActiveVideoId(getActiveVideoContext())
     if (shouldResetSubtitleForVideo(store.subtitle?.videoId, activeVideoId)) {
       store.reset()
+      translationGate.reset()
       console.log(
         `[BilingualTube] Navigated to different video, subtitle store reset (active=${activeVideoId ?? '-'}).`,
       )

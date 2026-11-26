@@ -6,11 +6,33 @@ import { IMP_API_BASE } from '@/lib/imp'
 // options page's connection check) without re-parsing the message.
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  retryAfterMs?: number
+  constructor(status: number, message: string, retryAfterMs?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.retryAfterMs = retryAfterMs
   }
+}
+
+/**
+ * Parse an HTTP `Retry-After` header (delta-seconds or HTTP-date) into a
+ * non-negative millisecond delay. Returns undefined when missing or invalid.
+ */
+export function parseRetryAfterMs(
+  header: string | null | undefined,
+  now: number = Date.now(),
+): number | undefined {
+  if (!header) return undefined
+  const trimmed = header.trim()
+  if (!trimmed) return undefined
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed)
+    return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined
+  }
+  const timestamp = Date.parse(trimmed)
+  if (Number.isNaN(timestamp)) return undefined
+  return Math.max(0, timestamp - now)
 }
 
 // Map a thrown error (or status) to something a user can act on. Falls back
@@ -67,7 +89,10 @@ export function imp(options: ImpConfig): Translator {
         body: JSON.stringify({ to, texts }),
       })
       if (!resp.ok) {
-        throw new ApiError(resp.status, await resp.text())
+        const retryAfterMs = parseRetryAfterMs(
+          resp.headers?.get?.('Retry-After'),
+        )
+        throw new ApiError(resp.status, await resp.text(), retryAfterMs)
       }
       const data = await resp.json()
       // The LLM behind Imp occasionally emits entity literals (`&gt;`); decode

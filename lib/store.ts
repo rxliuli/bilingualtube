@@ -17,11 +17,18 @@ type Listener = (currentTime: number) => void
 class SubtitleStore {
   subtitle: SubtitleEntry | null = null
   currentTime: number = 0
+  translationError: string | null = null
 
   private listeners: Set<Listener> = new Set()
 
   setSubtitle(subtitle: SubtitleEntry) {
     this.subtitle = subtitle
+  }
+
+  setTranslationError(error: string | null) {
+    if (this.translationError === error) return
+    this.translationError = error
+    this.listeners.forEach((listener) => listener(this.currentTime))
   }
 
   setCurrentTime(time: number) {
@@ -42,6 +49,7 @@ class SubtitleStore {
     this.abortController.abort()
     this.subtitle = null
     this.currentTime = 0
+    this.translationError = null
     this.abortController = new AbortController()
     this.listeners.forEach((listener) => listener(0))
   }

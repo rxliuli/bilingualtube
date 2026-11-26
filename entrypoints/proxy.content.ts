@@ -11,6 +11,10 @@ export default defineContentScript({
     eventMessager.onMessage('getSettings', () =>
       messager.sendMessage('getSettings'),
     )
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync' || !('settings' in changes)) return
+      eventMessager.sendMessage('settingsChanged').catch(() => {})
+    })
     eventMessager.onMessage('getPunctuationOptions', () => ({
       wasmUrl: browser.runtime.getURL(
         '/onnxruntime-web/ort-wasm-simd-threaded.wasm',

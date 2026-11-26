@@ -37,6 +37,12 @@
   opacity: 0.9;
 }
 
+#bilingual-tube-subtitle-overlay .subtitle-translated.subtitle-error {
+  color: #fca5a5;
+  font-size: 0.8em;
+  opacity: 1;
+}
+
 #movie_player:has(.ytp-subtitles-button[aria-pressed="true"]) #bilingual-tube-subtitle-overlay {
   display: flex;
   flex-direction: column;

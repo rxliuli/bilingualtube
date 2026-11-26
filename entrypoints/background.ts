@@ -9,9 +9,23 @@ import {
 import { microsoft } from '@/lib/translate/microsoft'
 import { google } from '@/lib/translate/google'
 import { openai } from '@/lib/translate/openai'
-import { ApiError, humanizeImpError, imp } from '@/lib/translate/imp'
+import { humanizeImpError, imp } from '@/lib/translate/imp'
+import { createTranslationGate } from '@/lib/translate/backoff'
 import { IMP_API_BASE, IMP_ORIGIN } from '@/lib/imp'
 import { getCached, setCached, evictOldEntries } from '@/lib/cache'
+
+// Shared across all YouTube tabs so a 401/402/429 in one tab never lets other
+// tabs (or rapid video switches) keep hammering the backend.
+const translationGate = createTranslationGate({ balanceMode: 'cooldown' })
+
+function settingsGateKey(settings: Settings): string {
+  return [
+    settings.engine ?? '',
+    settings['imp.apiKey'] ?? '',
+    settings['openai.apiKey'] ?? '',
+    settings['openai.baseUrl'] ?? '',
+  ].join('\0')
+}
 
 function getTranslator(settings: Settings) {
   const list = [
@@ -60,14 +74,24 @@ async function translate(texts: string[]): Promise<string[]> {
     return results
   }
 
+  const gateKey = settingsGateKey(settings)
+  if (!translationGate.canAttempt(gateKey)) {
+    throw new Error(
+      translationGate.lastErrorMessage() ?? 'Translation temporarily paused',
+    )
+  }
+
   const translator = getTranslator(settings)
   let translated: string[]
   try {
     translated = await translator.translate(uncachedTexts, targetLang)
+    translationGate.recordSuccess()
   } catch (error) {
     // humanizeImpError passes non-Imp errors through unchanged, so this is
     // safe to wrap the whole path; Imp 401/402/413/429 become actionable.
-    throw new Error(humanizeImpError(error))
+    const message = humanizeImpError(error)
+    translationGate.recordFailure(error, gateKey, message)
+    throw new Error(message)
   }
 
   for (const [i, originalIndex] of uncachedIndices.entries()) {
@@ -89,6 +113,11 @@ async function translate(texts: string[]): Promise<string[]> {
 }
 
 export default defineBackground(() => {
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync' || !('settings' in changes)) return
+    translationGate.reset()
+  })
+
   messager.onMessage('translate', (ev) => translate(ev.data))
   messager.onMessage('getSettings', getMergedSettings)
 

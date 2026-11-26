@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { imp, ApiError, humanizeImpError } from './imp'
+import { imp, ApiError, humanizeImpError, parseRetryAfterMs } from './imp'
 
 const IMP_API_BASE = 'https://imp.rxliuli.com/api/v1'
 
@@ -84,11 +84,12 @@ describe('imp', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('throws an ApiError carrying the status on a non-ok response', async () => {
+  it('throws an ApiError carrying the status and Retry-After on a non-ok response', async () => {
     const fetchMock = setupFetch()
     fetchMock.mockResolvedValue({
       ok: false,
       status: 429,
+      headers: new Headers({ 'Retry-After': '60' }),
       text: async () => 'x',
     })
 
@@ -100,6 +101,26 @@ describe('imp', () => {
     }
     expect(caught).toBeInstanceOf(ApiError)
     expect((caught as ApiError).status).toBe(429)
+    expect((caught as ApiError).retryAfterMs).toBe(60_000)
+  })
+})
+
+describe('parseRetryAfterMs', () => {
+  it('parses delta-seconds headers', () => {
+    expect(parseRetryAfterMs('60')).toBe(60_000)
+    expect(parseRetryAfterMs(' 0 ')).toBe(0)
+  })
+
+  it('parses HTTP-date headers relative to now', () => {
+    const now = Date.parse('2026-11-26T12:00:00Z')
+    expect(parseRetryAfterMs('Thu, 26 Nov 2026 12:01:30 GMT', now)).toBe(90_000)
+    expect(parseRetryAfterMs('Thu, 26 Nov 2026 11:59:00 GMT', now)).toBe(0)
+  })
+
+  it('returns undefined for missing or invalid values', () => {
+    expect(parseRetryAfterMs(null)).toBeUndefined()
+    expect(parseRetryAfterMs('')).toBeUndefined()
+    expect(parseRetryAfterMs('not-a-date')).toBeUndefined()
   })
 })
 

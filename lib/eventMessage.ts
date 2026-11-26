@@ -4,6 +4,7 @@ import type { Settings } from './settings'
 export const eventMessager = defineCustomEventMessaging<{
   translate(texts: string[]): Promise<string[]>
   getSettings(): Promise<Settings>
+  settingsChanged(): void
   getPunctuationOptions(): {
     wasmUrl: string
     sherpaModelPath: string
