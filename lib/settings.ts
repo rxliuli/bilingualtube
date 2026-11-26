@@ -8,7 +8,7 @@ export interface Settings {
   to?: ToLang
   engine?: 'microsoft' | 'google' | 'openai' | 'imp'
   displayMode?: DisplayMode
-
+  enabled?: boolean
   'openai.apiKey'?: string
   'openai.model'?: string
   'openai.baseUrl'?: string
@@ -26,6 +26,7 @@ export function getDefaultSettings(): Pick<Settings, OptionalKeysOf<Settings>> {
     to: 'en',
     engine: 'google',
     displayMode: 'bilingual',
+    enabled: true,
     'openai.baseUrl': 'https://api.openai.com/v1',
     'openai.prompt': DefaultLLMPrompt,
     'openai.model': 'gpt-4o-mini',
@@ -53,4 +54,13 @@ export async function setSyncSettings(settings: Settings) {
   await browser.storage.sync.set<{
     settings: Settings
   }>({ settings })
+}
+
+export async function setEnabled(nextEnabled: boolean) {
+  const settings = await getSyncSettings()
+
+  await setSyncSettings({
+    ...settings,
+    enabled: nextEnabled,
+  })
 }
