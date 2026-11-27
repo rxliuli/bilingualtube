@@ -1,21 +1,24 @@
 /**
- * Wrap an async function so calls made while a previous invocation is still
- * in flight are dropped instead of run concurrently. The guard is set
- * synchronously, before the wrapped function's first await — otherwise two
- * callers arriving in the same tick could both pass the check and run the
- * same work twice.
+ * Drop overlapping calls with the same key.
+ * Without getKey, all calls share one key.
  */
 export function skipWhileRunning<A extends unknown[]>(
   fn: (...args: A) => Promise<void>,
+  getKey?: (...args: A) => unknown,
 ): (...args: A) => Promise<void> {
-  let running = false
+  const running = new Set<unknown>()
+
   return async (...args: A) => {
-    if (running) return
-    running = true
+    const key = getKey?.(...args)
+
+    if (running.has(key)) return
+
+    running.add(key)
+
     try {
       await fn(...args)
     } finally {
-      running = false
+      running.delete(key)
     }
   }
 }

@@ -50,6 +50,11 @@ function getTranslator(settings: Settings) {
 
 async function translate(texts: string[]): Promise<string[]> {
   const settings = await getMergedSettings()
+
+  if (settings.enabled === false) {
+    return []
+  }
+
   const targetLang = settings.to!
   const engine = settings.engine!
 
@@ -112,10 +117,34 @@ async function translate(texts: string[]): Promise<string[]> {
   return results
 }
 
+async function updateEnabledBadge(enabled?: boolean) {
+  const isEnabled = enabled ?? (await getMergedSettings()).enabled !== false
+  await browser.action.setBadgeText({
+    text: isEnabled ? '' : 'OFF',
+  })
+  if (!isEnabled) {
+    await browser.action.setBadgeBackgroundColor({ color: '#71717a' })
+    // Safari doesn't implement action.setBadgeTextColor; guard with optional chaining.
+    await browser.action.setBadgeTextColor?.({ color: '#FFFFFF' })
+  }
+}
+
 export default defineBackground(() => {
+  const refreshBadge = (enabled?: boolean) => {
+    void updateEnabledBadge(enabled).catch((error) => {
+      console.error('[BilingualTube] Failed to update badge:', error)
+    })
+  }
+
+  browser.runtime.onStartup.addListener(() => refreshBadge())
+  browser.runtime.onInstalled.addListener(() => refreshBadge())
+
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync' || !('settings' in changes)) return
+
     translationGate.reset()
+    const nextSettings = changes.settings.newValue as Settings | undefined
+    refreshBadge(nextSettings?.enabled !== false)
   })
 
   messager.onMessage('translate', (ev) => translate(ev.data))
@@ -167,7 +196,4 @@ export default defineBackground(() => {
     }
   })
 
-  browser.action.onClicked.addListener(async () => {
-    await browser.runtime.openOptionsPage()
-  })
 })

@@ -42,3 +42,31 @@ it('releases the guard when the wrapped function throws', async () => {
   await expect(fn()).rejects.toThrow('boom')
   expect(attempts).toBe(2)
 })
+
+it('allows a new key while keeping pending keys independently guarded', async () => {
+  let key = 1
+  const runs: number[] = []
+  const releases: Array<() => void> = []
+
+  const fn = skipWhileRunning(async () => {
+    runs.push(key)
+    await new Promise<void>((resolve) => releases.push(resolve))
+  }, () => key)
+
+  const first = fn()
+  await fn()
+  expect(runs).toEqual([1])
+
+  key = 2
+  const second = fn()
+  await fn()
+  expect(runs).toEqual([1, 2])
+
+  releases[0]!()
+  await first
+  await fn()
+  expect(runs).toEqual([1, 2])
+
+  releases[1]!()
+  await second
+})

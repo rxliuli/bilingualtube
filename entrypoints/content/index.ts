@@ -34,6 +34,9 @@ import {
 
 // Header to identify internal extension requests
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
+let subtitlesEnabled = false
+let currentTargetLanguage: string | undefined
+let translationVersion = 0
 
 type MoviePlayerElement = Element & {
   getVideoData?: () => { video_id?: string } | undefined
@@ -75,6 +78,9 @@ export default defineContentScript({
         console.log('[BilingualTube] Movie player element observed')
         setupSubtitleUI()
         setupVideoProgressListener()
+        void refreshSubtitleSettings().catch((error) => {
+          console.error('[BilingualTube] Failed to refresh settings:', error)
+        })
         console.log('[BilingualTube] Content Script Initialized.')
       },
       root: document.documentElement,
@@ -472,52 +478,58 @@ const translationGate = createTranslationGate({ balanceMode: 'halt' })
 // skipWhileRunning drops calls arriving while a translation batch is in
 // flight (stream yields and timeupdate can fire in the same tick).
 const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
-  if (!translationGate.canAttempt()) {
+  // Do not start translation while the extension is disabled.
+  if (!subtitlesEnabled || !translationGate.canAttempt()) {
     return
   }
+
   const signal = store.getSignal()
-  const cues = store.subtitle?.cues ?? []
-  if (!shouldTriggerTranslation(cues, currentTime)) {
-    return
-  }
+  const runVersion = translationVersion
 
-  // Check if source and target languages are the same
-  if (await isSameLanguage()) {
-    return
-  }
-  if (signal.aborted) {
-    return
-  }
-
-  const cuesToTranslate = getCuesToTranslate(cues, currentTime)
-  if (cuesToTranslate.length === 0) return
+  // A video change, disable toggle, or target language switch invalidates this run.
+  const isOutdated = () =>
+    signal.aborted || !subtitlesEnabled || runVersion !== translationVersion
 
   try {
+    const cues = store.subtitle?.cues ?? []
+    if (!shouldTriggerTranslation(cues, currentTime)) {
+      return
+    }
+
+    const sameLanguage = await isSameLanguage()
+    if (isOutdated() || sameLanguage) {
+      return
+    }
+
+    const cuesToTranslate = getCuesToTranslate(cues, currentTime)
+    if (cuesToTranslate.length === 0) {
+      return
+    }
+
     console.log(`[BilingualTube] Translating ${cuesToTranslate.length} cues`)
+
     const texts = cuesToTranslate.map((cue) => cue.text)
     const translations = await eventMessager.sendMessage('translate', texts)
-    if (signal.aborted) {
-      console.log('[BilingualTube] Translation aborted.')
+    if (isOutdated()) {
       return
     }
 
     translationGate.recordSuccess()
     store.setTranslationError(null)
-    // Update translations of cues
     cuesToTranslate.forEach((cue, index) => {
       cue.translated = translations[index]
     })
-    // Trigger subtitle display update
     store.setCurrentTime(store.currentTime)
 
     console.log(`[BilingualTube] Translated ${cuesToTranslate.length} cues`)
   } catch (error) {
-    if (signal.aborted) {
-      console.log('[BilingualTube] Translation aborted.')
+    if (isOutdated()) {
       return
     }
+
     const { halted, delayMs, message } = translationGate.recordFailure(error)
     store.setTranslationError(message)
+
     if (halted) {
       console.error(
         `[BilingualTube] Translation paused (${message}). Switch engine, reconnect, or top up to resume.`,
@@ -528,20 +540,58 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
       )
     }
   }
-})
+}, () => translationVersion)
+
+async function refreshSubtitleSettings() {
+  const settings = await eventMessager.sendMessage('getSettings')
+  const nextEnabled = settings.enabled ?? true
+  const nextTargetLanguage = settings.to ?? 'en'
+
+  const languageChanged =
+    currentTargetLanguage !== undefined &&
+    currentTargetLanguage !== nextTargetLanguage
+
+  if (subtitlesEnabled !== nextEnabled || languageChanged) {
+    translationVersion++
+  }
+
+  subtitlesEnabled = nextEnabled
+  currentTargetLanguage = nextTargetLanguage
+
+  if (languageChanged && store.subtitle) {
+    for (const cue of store.subtitle.cues) {
+      delete cue.translated
+    }
+  }
+
+  document.documentElement.setAttribute(
+    'data-bilingualtube-enabled',
+    String(subtitlesEnabled),
+  )
+
+  translationGate.reset()
+  store.setTranslationError(null)
+  store.setCurrentTime(store.currentTime)
+
+  if (subtitlesEnabled && store.subtitle) {
+    void triggerTranslation(store.currentTime)
+  }
+}
 
 function setupTranslationRecoveryListeners() {
   eventMessager.onMessage('settingsChanged', () => {
-    translationGate.reset()
-    store.setTranslationError(null)
-    if (store.subtitle) {
-      triggerTranslation(store.currentTime)
-    }
+    void refreshSubtitleSettings().catch((error) => {
+      console.error('[BilingualTube] Failed to refresh settings:', error)
+    })
   })
+
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return
+    if (!subtitlesEnabled || document.visibilityState !== 'visible') {
+      return
+    }
+
     if (translationGate.allowReprobe() && store.subtitle) {
-      triggerTranslation(store.currentTime)
+      void triggerTranslation(store.currentTime)
     }
   })
 }
