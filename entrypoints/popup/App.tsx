@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { browser } from 'wxt/browser'
 import { getMergedSettings, setEnabled } from '@/lib/settings'
+import { Settings as SettingsIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export function App() {
   const [enabled, updateEnabled] = useState(true)
@@ -58,7 +60,31 @@ export function App() {
 
   return (
     <main className="popup">
-      <h1>BilingualTube</h1>
+      <header className="popup-header">
+  <div className="popup-brand">
+    <img
+      src={browser.runtime.getURL('/icon/48.png')}
+      alt=""
+      width={28}
+      height={28}
+    />
+    <h1>BilingualTube</h1>
+  </div>
+
+  <Button
+    className="settings-button"
+    variant="ghost"
+    size="icon"
+    type="button"
+    aria-label="Settings"
+    title="Settings"
+    onClick={() => {
+      void openSettings()
+    }}
+  >
+    <SettingsIcon size={20} aria-hidden="true" />
+  </Button>
+</header>
 
       <section className="toggle-section">
         <label className="toggle-row">
@@ -78,17 +104,6 @@ export function App() {
 
         <p className="hint">Applies to all YouTube tabs.</p>
       </section>
-
-      <button
-        className="settings-button"
-        type="button"
-        onClick={() => {
-          void openSettings()
-        }}
-      >
-        <span aria-hidden="true">⚙</span>
-        Settings
-      </button>
 
       {error && (
         <p className="error" role="alert">
