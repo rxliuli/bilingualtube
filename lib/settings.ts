@@ -64,3 +64,12 @@ export async function setEnabled(nextEnabled: boolean) {
     enabled: nextEnabled,
   })
 }
+
+export async function setTargetLanguage(nextLanguage: ToLang) {
+  const settings = await getSyncSettings()
+
+  await setSyncSettings({
+    ...settings,
+    to: nextLanguage,
+  })
+}
