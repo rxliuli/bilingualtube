@@ -382,6 +382,8 @@ function createSubtitleOverlay() {
   if (!container) {
     container = document.createElement('div')
     container.id = 'bilingual-tube-subtitle-overlay'
+    container.setAttribute('translate', 'no')
+    container.classList.add('notranslate')
 
     // Pre-create two divs
     const originalDiv = document.createElement('div')
