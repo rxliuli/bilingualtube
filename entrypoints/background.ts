@@ -57,7 +57,7 @@ async function translate(texts: string[]): Promise<string[]> {
 
   const targetLang = settings.to!
   const engine = settings.engine!
-  
+
   const results: string[] = []
   const uncachedIndices: number[] = []
   const uncachedTexts: string[] = []
@@ -86,16 +86,9 @@ async function translate(texts: string[]): Promise<string[]> {
     )
   }
 
-    const translator = getTranslator(settings)
+  const translator = getTranslator(settings)
   let translated: string[]
   try {
-    // Settings may have changed while reading the translation cache.
-    const latestSettings = await getMergedSettings()
-
-    if (latestSettings.enabled === false) {
-      return []
-    }
-
     translated = await translator.translate(uncachedTexts, targetLang)
     translationGate.recordSuccess()
   } catch (error) {
@@ -124,39 +117,36 @@ async function translate(texts: string[]): Promise<string[]> {
   return results
 }
 
-let badgeUpdateVersion = 0
-
-async function updateEnabledBadge() {
-  const readVersion = ++badgeUpdateVersion
-  const settings = await getMergedSettings()
-
-  if (readVersion !== badgeUpdateVersion) {
-    return
-  }
-
+async function updateEnabledBadge(enabled?: boolean) {
+  const isEnabled = enabled ?? (await getMergedSettings()).enabled !== false
   await browser.action.setBadgeText({
-    text: settings.enabled === false ? 'OFF' : '',
+    text: isEnabled ? '' : 'OFF',
   })
+  if (!isEnabled) {
+    await browser.action.setBadgeBackgroundColor({ color: '#71717a' })
+    // Safari doesn't implement action.setBadgeTextColor; guard with optional chaining.
+    await browser.action.setBadgeTextColor?.({ color: '#FFFFFF' })
+  }
 }
 
 export default defineBackground(() => {
-  const refreshBadge = () => {
-    void updateEnabledBadge().catch((error) => {
+  const refreshBadge = (enabled?: boolean) => {
+    void updateEnabledBadge(enabled).catch((error) => {
       console.error('[BilingualTube] Failed to update badge:', error)
     })
   }
 
-  browser.runtime.onStartup.addListener(refreshBadge)
-  browser.runtime.onInstalled.addListener(refreshBadge)
+  browser.runtime.onStartup.addListener(() => refreshBadge())
+  browser.runtime.onInstalled.addListener(() => refreshBadge())
 
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync' || !('settings' in changes)) return
 
     translationGate.reset()
-    refreshBadge()
+    const nextSettings = changes.settings.newValue as Settings | undefined
+    refreshBadge(nextSettings?.enabled !== false)
   })
 
-  refreshBadge()
   messager.onMessage('translate', (ev) => translate(ev.data))
   messager.onMessage('getSettings', getMergedSettings)
 
