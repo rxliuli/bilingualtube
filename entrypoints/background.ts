@@ -124,12 +124,39 @@ async function translate(texts: string[]): Promise<string[]> {
   return results
 }
 
+let badgeUpdateVersion = 0
+
+async function updateEnabledBadge() {
+  const readVersion = ++badgeUpdateVersion
+  const settings = await getMergedSettings()
+
+  if (readVersion !== badgeUpdateVersion) {
+    return
+  }
+
+  await browser.action.setBadgeText({
+    text: settings.enabled === false ? 'OFF' : '',
+  })
+}
+
 export default defineBackground(() => {
+  const refreshBadge = () => {
+    void updateEnabledBadge().catch((error) => {
+      console.error('[BilingualTube] Failed to update badge:', error)
+    })
+  }
+
+  browser.runtime.onStartup.addListener(refreshBadge)
+  browser.runtime.onInstalled.addListener(refreshBadge)
+
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync' || !('settings' in changes)) return
+
     translationGate.reset()
+    refreshBadge()
   })
 
+  refreshBadge()
   messager.onMessage('translate', (ev) => translate(ev.data))
   messager.onMessage('getSettings', getMergedSettings)
 
