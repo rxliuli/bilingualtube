@@ -133,3 +133,33 @@ h1 {
     color: #fca5a5;
   }
 }
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.popup-brand img {
+  flex-shrink: 0;
+}
+
+.popup-header h1 {
+  padding-bottom: 0;
+}
+
+.popup-header .settings-button {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 8px;
+  justify-content: center;
+}
