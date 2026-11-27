@@ -1,24 +1,72 @@
-/**
- * Drop overlapping calls with the same key.
- * Without getKey, all calls share one key.
- */
-export function skipWhileRunning<A extends unknown[]>(
-  fn: (...args: A) => Promise<void>,
-  getKey?: (...args: A) => unknown,
-): (...args: A) => Promise<void> {
-  const running = new Set<unknown>()
+import { expect, it } from 'vitest'
+import { skipWhileRunning } from './async-utils'
 
-  return async (...args: A) => {
-    const key = getKey?.(...args)
+// Regression: triggerTranslation set its in-flight guard only after the
+// first await, so a stream-yield trigger and a timeupdate trigger arriving
+// in the same tick both passed the check and translated the same batch
+// twice (duplicate "Translating 10 cues" log pairs at identical timestamps).
+it('drops calls made while a previous invocation is in flight', async () => {
+  let runs = 0
+  let release!: () => void
+  const gate = new Promise<void>((r) => (release = r))
+  const fn = skipWhileRunning(async () => {
+    // The guard must already be set here, before this first await.
+    await gate
+    runs++
+  })
 
-    if (running.has(key)) return
+  const first = fn()
+  const second = fn() // same tick, while the first is still pending
+  release()
+  await Promise.all([first, second])
+  expect(runs).toBe(1)
+})
 
-    running.add(key)
+it('allows calls again after the previous invocation settles', async () => {
+  let runs = 0
+  const fn = skipWhileRunning(async () => {
+    runs++
+  })
+  await fn()
+  await fn()
+  expect(runs).toBe(2)
+})
 
-    try {
-      await fn(...args)
-    } finally {
-      running.delete(key)
-    }
-  }
-}
+it('releases the guard when the wrapped function throws', async () => {
+  let attempts = 0
+  const fn = skipWhileRunning(async () => {
+    attempts++
+    throw new Error('boom')
+  })
+  await expect(fn()).rejects.toThrow('boom')
+  await expect(fn()).rejects.toThrow('boom')
+  expect(attempts).toBe(2)
+})
+
+it('allows a new key while keeping pending keys independently guarded', async () => {
+  let key = 1
+  const runs: number[] = []
+  const releases: Array<() => void> = []
+
+  const fn = skipWhileRunning(async () => {
+    runs.push(key)
+    await new Promise<void>((resolve) => releases.push(resolve))
+  }, () => key)
+
+  const first = fn()
+  await fn()
+  expect(runs).toEqual([1])
+
+  key = 2
+  const second = fn()
+  await fn()
+  expect(runs).toEqual([1, 2])
+
+  releases[0]!()
+  await first
+  await fn()
+  expect(runs).toEqual([1, 2])
+
+  releases[1]!()
+  await second
+})
