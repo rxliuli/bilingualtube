@@ -1,3 +1,4 @@
+@import '../options/style.css';
 :root {
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -162,4 +163,16 @@ h1 {
   margin: 0;
   padding: 8px;
   justify-content: center;
+}
+
+.language-section {
+  padding-top: 20px;
+}
+
+.language-section label {
+  margin-bottom: 8px;
+}
+
+.language-section [data-slot="native-select-wrapper"] {
+  width: 100%;
 }
