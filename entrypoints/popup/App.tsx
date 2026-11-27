@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react'
 import { browser } from 'wxt/browser'
-import { getMergedSettings, setEnabled } from '@/lib/settings'
+import {
+  getMergedSettings,
+  setEnabled,
+  setTargetLanguage,
+} from '@/lib/settings'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select'
+import { Label } from '@/components/ui/label'
+import { langs, type ToLang } from '@/lib/translate/lang'
 
 export function App() {
   const [enabled, updateEnabled] = useState(true)
+  const [targetLanguage, updateTargetLanguage] = useState<ToLang>('en')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -19,7 +30,8 @@ export function App() {
 
         if (active) {
           updateEnabled(settings.enabled ?? true)
-          setLoading(false)
+updateTargetLanguage(settings.to ?? 'en')
+setLoading(false)
         }
       } catch {
         if (active) {
@@ -49,6 +61,20 @@ export function App() {
     }
   }
 
+async function handleLanguageChange(nextLanguage: ToLang) {
+  setSaving(true)
+  setError('')
+
+  try {
+    await setTargetLanguage(nextLanguage)
+    updateTargetLanguage(nextLanguage)
+  } catch {
+    setError('Could not save the language. Please try again.')
+  } finally {
+    setSaving(false)
+  }
+}
+  
   async function openSettings() {
     try {
       await browser.runtime.openOptionsPage()
@@ -105,6 +131,28 @@ export function App() {
         <p className="hint">Applies to all YouTube tabs.</p>
       </section>
 
+<div className="language-section">
+  <Label htmlFor="target-language">Target Language</Label>
+
+  <NativeSelect
+    id="target-language"
+    value={targetLanguage}
+    disabled={loading || saving}
+    onChange={(event) => {
+      void handleLanguageChange(event.currentTarget.value as ToLang)
+    }}
+  >
+    {Object.entries(langs)
+      .filter(([code]) => code !== 'auto')
+      .sort(([, nameA], [, nameB]) => nameA.localeCompare(nameB))
+      .map(([code, name]) => (
+        <NativeSelectOption key={code} value={code}>
+          {name}
+        </NativeSelectOption>
+      ))}
+  </NativeSelect>
+</div>
+      
       {error && (
         <p className="error" role="alert">
           {error}
