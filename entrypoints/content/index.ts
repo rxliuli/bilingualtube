@@ -36,6 +36,8 @@ import {
 const INTERNAL_REQUEST_HEADER = 'X-BilingualTube-Internal'
 let subtitlesEnabled = false
 let settingsReadVersion = 0
+let currentTargetLanguage: string | undefined
+let translationRunVersion = 0
 
 type MoviePlayerElement = Element & {
   getVideoData?: () => { video_id?: string } | undefined
@@ -563,18 +565,36 @@ const triggerTranslation = skipWhileRunning(async (currentTime: number) => {
         void triggerTranslation(store.currentTime)
       }, 0)
     }
-  }
-})
+    }
+}, () => translationRunVersion)
+
 async function refreshSubtitleSettings() {
   const readVersion = ++settingsReadVersion
   const settings = await eventMessager.sendMessage('getSettings')
 
-  // Ignore an older read if another settings update has already started.
   if (readVersion !== settingsReadVersion) {
     return
   }
 
-  subtitlesEnabled = settings.enabled ?? true
+  const nextEnabled = settings.enabled ?? true
+  const nextTargetLanguage = settings.to ?? 'en'
+
+  const languageChanged =
+    currentTargetLanguage !== undefined &&
+    currentTargetLanguage !== nextTargetLanguage
+
+  if (subtitlesEnabled !== nextEnabled || languageChanged) {
+    translationRunVersion++
+  }
+
+  subtitlesEnabled = nextEnabled
+  currentTargetLanguage = nextTargetLanguage
+
+  if (languageChanged && store.subtitle) {
+    for (const cue of store.subtitle.cues) {
+      delete cue.translated
+    }
+  }
 
   document.documentElement.setAttribute(
     'data-bilingualtube-enabled',
@@ -583,8 +603,6 @@ async function refreshSubtitleSettings() {
 
   translationGate.reset()
   store.setTranslationError(null)
-
-  // Refresh the current subtitle even when the video is paused.
   store.setCurrentTime(store.currentTime)
 
   if (subtitlesEnabled && store.subtitle) {
